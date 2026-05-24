@@ -29,7 +29,7 @@ if ecoryong_base64:
 else:
     mascot_src = "https://cdn-icons-png.flaticon.com/512/2312/2312218.png"
 
-# --- [3. 고대비 디자인 및 위치 조정 CSS] ---
+# --- [3. 고대비 디자인 및 미세 위치 조정 CSS] ---
 st.set_page_config(page_title="에코룡의 지구 구출 작전", page_icon="🦖", layout="wide")
 
 st.markdown(f"""
@@ -68,21 +68,21 @@ st.markdown(f"""
         line-height: 1.1;
     }}
 
-    /* [조정됨] 에코룡 캐릭터 위치: 왼쪽으로 더 이동 (-30px) */
+    /* [조정] 에코룡 캐릭터 위치: 아주 살짝 더 아래로 (-40px -> -65px) */
     .ecoryong-container {{
         position: fixed;
-        bottom: -40px;
+        bottom: -65px; 
         left: -30px; 
         width: 450px;
         z-index: 999;
         pointer-events: none;
     }}
     
-    /* [조정됨] 말풍선 위치: 왼쪽으로 더 이동하고 위로 올림 */
+    /* [조정] 말풍선 위치: 왼쪽으로 당기고 위로 더 올림 (left: 20px, bottom: 480px) */
     .speech-bubble {{
         position: fixed;
-        bottom: 450px; /* 기존 380px에서 위로 올림 */
-        left: 50px;   /* 기존 120px에서 왼쪽으로 당김 */
+        bottom: 480px; 
+        left: 20px;   
         background: #ffffff;
         color: #059669 !important;
         padding: 20px 30px;
