@@ -37,29 +37,37 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- [2. Groq AI 자동 모델 선택 (에러 방지)] ---
+# --- [2. Groq AI 클라이언트 설정] ---
 if "GROQ_API_KEY" in st.secrets:
     client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 else:
     st.error("Secrets에 'GROQ_API_KEY'를 등록해주세요!")
     st.stop()
 
+# --- [3. 에러 해결 핵심: 살아있는 비전 모델 자동 찾기] ---
 @st.cache_resource
-def get_vision_model():
-    # 현재 Groq에서 쓸 수 있는 비전 모델을 자동으로 찾습니다.
+def find_live_vision_model():
     try:
-        models = client.models.list()
-        # 1순위: 90b-vision, 2순위: 11b-vision
-        available = [m.id for m in models.data if "vision" in m.id]
-        if "llama-3.2-90b-vision-preview" in available: return "llama-3.2-90b-vision-preview"
-        if "llama-3.2-11b-vision-preview" in available: return "llama-3.2-11b-vision-preview"
-        return available[0] # 아무거나 비전 모델 선택
-    except:
-        return "llama-3.2-90b-vision-preview" # 기본값
+        # 현재 Groq 서버에서 사용 가능한 모든 모델 리스트를 가져옵니다.
+        models = client.models.list().data
+        # 이름에 'vision'이 들어간 모델들만 추출합니다.
+        vision_models = [m.id for m in models if "vision" in m.id.lower()]
+        
+        # 우선순위대로 골라봅니다.
+        # 1. 90b(고성능) -> 2. 11b(보통) -> 3. llava(기본)
+        for pref in ["llama-3.2-90b-vision", "llama-3.2-11b-vision", "llava"]:
+            for m in vision_models:
+                if pref in m:
+                    return m
+        # 없으면 비전 모델 중 첫 번째꺼 반환
+        return vision_models[0] if vision_models else "llama-3.2-11b-vision-preview"
+    except Exception:
+        # 리스트 조회 실패 시 가장 확률 높은 모델명 수동 반환
+        return "llama-3.2-11b-vision-preview"
 
-WORKING_MODEL = get_vision_model()
+WORKING_MODEL = find_live_vision_model()
 
-# --- [3. 유틸리티 함수] ---
+# --- [4. 유틸리티 함수] ---
 def encode_image(image_file):
     return base64.b64encode(image_file.getvalue()).decode('utf-8')
 
@@ -74,12 +82,11 @@ def call_ai(prompt, b64_img):
                     {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64_img}"}}
                 ]
             }],
-            temperature=0.2,
-            max_tokens=500
+            temperature=0.1
         )
         return res.choices[0].message.content
     except Exception as e:
-        return f"🚨 에러 발생: {e}"
+        return f"🚨 분석 중 오류 발생: {e}"
 
 def load_score():
     if not os.path.exists("eco_score.txt"): return 0
@@ -92,25 +99,24 @@ def add_score():
     with open("eco_score.txt", "w") as f: f.write(str(score))
     return score
 
-# --- [4. 메인 화면 구성] ---
+# --- [5. 앱 UI 로직] ---
 if 'step' not in st.session_state: st.session_state.step = 1
 if 'guide' not in st.session_state: st.session_state.guide = ""
 if 'verified' not in st.session_state: st.session_state.verified = False
 
-st.markdown('<div class="header-container"><h1>🤖 Eco-Bot 챌린지</h1><p>분리배출 2단계 인증 시스템</p></div>', unsafe_allow_html=True)
+st.markdown('<div class="header-container"><h1>🤖 Eco-Bot 챌린지</h1><p>살아있는 AI 엔진 자동 연결 중</p></div>', unsafe_allow_html=True)
 
 score = load_score()
-st.markdown(f"<div style='text-align:center; font-weight:bold; color:#065F46; margin-bottom:15px;'>현재 우리 반 점수: {score}점 🏆</div>", unsafe_allow_html=True)
+st.info(f"🏆 현재 우리 반 누적 점수: {score}점")
 
-# --- [5. 앱 로직] ---
 if st.session_state.step == 1:
-    st.markdown('<div class="bot-card"><div><strong>안녕! 난 에코봇이야.</strong><br>버릴 물건 사진을 찍으면 버리는 법을 알려줄게!</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="bot-card"><div><strong>안녕! 에코봇이야.</strong><br>버릴 물건 사진을 찍으면 방법을 알려줄게!</div></div>', unsafe_allow_html=True)
     img1 = st.camera_input("1단계: 버리기 전 사진")
     if img1:
-        if st.button("AI 가이드 받기 💡"):
-            with st.spinner("AI 분석 중..."):
+        if st.button("AI 분석 시작 💡"):
+            with st.spinner("최적의 모델로 분석 중..."):
                 b64 = encode_image(img1)
-                res = call_ai("이 물건의 분리배출 방법을 한국어로 딱 3줄 요약해줘. 1.비움 2.제거 3.분류 형식!", b64)
+                res = call_ai("이 물건의 분리배출 방법 3줄 요약. 1.비움 2.제거 3.분류 형식으로 한국어로!", b64)
                 st.session_state.guide = res
                 st.session_state.step = 2
                 st.rerun()
@@ -121,29 +127,27 @@ elif st.session_state.step == 2:
     
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("처음으로 🔄"):
+        if st.button("다시 하기 🔄"):
             st.session_state.step = 1
             st.rerun()
     with col2:
         if img2 and not st.session_state.verified:
-            if st.button("인증하기 ✅"):
-                with st.spinner("검사 중..."):
+            if st.button("최종 인증 ✅"):
+                with st.spinner("검수 중..."):
                     b64_2 = encode_image(img2)
-                    v_prompt = f"가이드: {st.session_state.guide}. 사진을 보고 가이드대로 잘 했는지 확인해줘. 성공했으면 '인증성공'이라 말해줘."
-                    res = call_ai(v_prompt, b64_2)
+                    res = call_ai(f"가이드: {st.session_state.guide}. 사진을 보고 잘 했으면 '인증성공'이라 말해줘.", b64_2)
                     if "인증성공" in res or "성공" in res:
                         add_score()
                         st.session_state.verified = True
                         st.balloons()
                         st.success(res)
-                    else:
-                        st.error(res)
+                    else: st.error(res)
 
     if st.session_state.verified:
-        if st.button("다음 쓰레기 하기 ➡️"):
+        if st.button("다음 쓰레기 인증하기 ➡️"):
             st.session_state.step = 1
             st.session_state.verified = False
             st.rerun()
 
 st.markdown("---")
-st.caption(f"안정적인 Groq Llama Vision 엔진 가동 중 | 모델: {WORKING_MODEL}")
+st.caption(f"연결된 엔진: {WORKING_MODEL} (자동 업데이트 완료)")
