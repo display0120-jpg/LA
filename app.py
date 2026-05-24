@@ -4,7 +4,7 @@ from PIL import Image
 import os
 import base64
 
-# --- [1. API 및 AI 모델 자동 탐색] ---
+# --- [1. API 및 AI 모델 설정] ---
 if "GEMINI_API_KEY" in st.secrets:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 else:
@@ -12,134 +12,128 @@ else:
     st.stop()
 
 @st.cache_resource
-def get_model_safely():
+def get_stable_model():
     try:
-        # 내 API 키로 사용 가능한 모델 리스트를 싹 다 긁어옵니다.
+        # 현재 사용 가능한 모델 리스트를 조회하여 1.5-flash 자동 연결
         available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-        
-        # 1.5-flash를 먼저 찾고, 없으면 사용 가능한 아무 모델이나 가져옵니다.
-        target = ""
-        for m in available_models:
-            if "gemini-1.5-flash" in m:
-                target = m
-                break
-        if not target:
-            target = available_models[0] # 아무거나 첫 번째 모델 사용
-            
+        target = next((m for m in available_models if "gemini-1.5-flash" in m), available_models[0])
         return genai.GenerativeModel(target)
-    except Exception as e:
-        st.error(f"모델 연결 실패: {e}")
-        return None
+    except: return None
 
-model = get_model_safely()
+model = get_stable_model()
 
-# --- [2. 이미지 로드 로직 (에코룡 캐릭터)] ---
+# --- [2. 이미지 로드 로직] ---
 def get_base64_image(image_path):
     if os.path.exists(image_path):
-        try:
-            with open(image_path, "rb") as img_file:
-                return base64.b64encode(img_file.read()).decode()
-        except: return None
+        with open(image_path, "rb") as f: return base64.b64encode(f.read()).decode()
     return None
 
-ecoryong_base64 = get_base64_image("ecoryong.png")
-mascot_src = f"data:image/png;base64,{ecoryong_base64}" if ecoryong_base64 else "https://cdn-icons-png.flaticon.com/512/2312/2312218.png"
+ecoryong_b64 = get_base64_image("ecoryong.png")
+mascot_src = f"data:image/png;base64,{ecoryong_b64}" if ecoryong_b64 else ""
 
-# --- [3. 디자인 (가독성 최강: 검정 글씨 + 흰색 테두리)] ---
-st.set_page_config(page_title="에코룡의 지구 구출 작전", page_icon="🦖", layout="wide")
+# --- [3. 세련된 프리미엄 디자인 CSS] ---
+st.set_page_config(page_title="Nature Connect", page_icon="🌿", layout="wide")
 
 st.markdown(f"""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Pretendard:wght@900&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Pretendard:wght@300;600;800&display=swap');
 
-    /* 배경: 숲 사진 */
+    /* 배경: 고화질 숲 + 부드러운 다크 레이어 */
     .stApp {{
-        background: url("https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?ixlib=rb-1.2.1&auto=format&fit=crop&w=2000&q=80");
+        background: linear-gradient(rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.3)),
+                    url("https://images.unsplash.com/photo-1441974231531-c6227db76b6e?ixlib=rb-1.2.1&auto=format&fit=crop&w=2000&q=80");
         background-size: cover;
         background-position: center;
         background-attachment: fixed;
     }}
 
-    /* 고대비 가독성: 검정 글씨 + 두꺼운 흰색 테두리 (text-shadow 8방향) */
-    h1, h2, h3, h4, p, span, label, .stMarkdown, .info-text {{
-        color: #000000 !important;
-        font-family: 'Pretendard', sans-serif !important;
-        font-weight: 900 !important;
-        text-shadow: 
-            -3px -3px 0 #fff,  3px -3px 0 #fff,
-            -3px  3px 0 #fff,  3px  3px 0 #fff,
-             0px -3px 0 #fff,  0px  3px 0 #fff,
-            -3px  0px 0 #fff,  3px  0px 0 #fff,
-             2px 2px 10px rgba(0,0,0,0.3) !important;
+    /* 글래스모피즘 메인 컨테이너 */
+    .glass-card {{
+        background: rgba(255, 255, 255, 0.85);
+        backdrop-filter: blur(12px);
+        border-radius: 30px;
+        padding: 40px;
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+        color: #1a2e1a;
     }}
 
+    /* 텍스트 스타일: 가독성 중심 */
+    h1, h2, h3, p, span, label {{
+        font-family: 'Gowun Batang', serif !important;
+        color: #1a2e1a !important;
+    }}
+    
     .main-title {{
-        font-family: 'Black Han Sans', sans-serif !important;
-        font-size: 5.5rem !important;
+        font-size: 4.5rem !important;
+        font-weight: 700;
         text-align: center;
-        margin-top: 0px;
-        line-height: 1.1;
+        color: #ffffff !important;
+        text-shadow: 2px 2px 15px rgba(0,0,0,0.4);
+        margin-bottom: 5px;
     }}
 
-    /* 에코룡 위치: 살짝 왼쪽 아래 */
-    .ecoryong-container {{
+    .sub-title {{
+        font-family: 'Pretendard', sans-serif !important;
+        font-size: 1.2rem;
+        text-align: center;
+        color: rgba(255,255,255,0.9) !important;
+        margin-bottom: 50px;
+        letter-spacing: 3px;
+    }}
+
+    /* 우측 통계 패널 */
+    .stat-panel {{
+        background: rgba(255, 255, 255, 0.15);
+        backdrop-filter: blur(10px);
+        border-radius: 25px;
+        padding: 25px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        color: white !important;
+    }}
+
+    /* 에코룡 캐릭터 & 말풍선 (좌측 하단) */
+    .mascot-container {{
         position: fixed;
-        bottom: -65px; 
-        left: -30px; 
-        width: 450px;
+        bottom: -50px;
+        left: -30px;
+        width: 380px;
         z-index: 999;
         pointer-events: none;
     }}
     
-    /* 말풍선 위치: 왼쪽 위 */
     .speech-bubble {{
         position: fixed;
-        bottom: 480px; 
-        left: 20px;   
-        background: #ffffff;
-        color: #059669 !important;
+        bottom: 450px;
+        left: 30px;
+        background: rgba(255, 255, 255, 0.95);
         padding: 20px 30px;
-        border-radius: 50px;
-        border: 6px solid #059669;
-        font-weight: 900 !important;
-        font-size: 1.6rem;
-        z-index: 1000;
-        box-shadow: 10px 10px 0px rgba(0,0,0,0.1);
-        text-shadow: none !important;
+        border-radius: 25px;
+        border-bottom-left-radius: 2px;
+        font-weight: 600;
+        color: #064e3b !important;
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
     }}
 
-    .score-badge {{
-        position: fixed;
-        top: 30px;
-        right: 40px;
-        background: #fde047;
-        color: black !important;
-        padding: 20px 40px;
-        border: 5px solid black;
-        border-radius: 20px;
-        font-family: 'Black Han Sans', sans-serif !important;
-        font-size: 2.5rem;
-        transform: rotate(3deg);
-        z-index: 1000;
-        text-shadow: none !important;
-    }}
-
+    /* 버튼 스타일 */
     .stButton>button {{
-        background: #059669 !important;
+        background: #2d5a27 !important;
         color: white !important;
-        border: 4px solid white !important;
-        border-radius: 30px !important;
-        font-size: 2.2rem !important;
-        font-weight: 900 !important;
-        height: 100px !important;
+        border-radius: 15px !important;
+        border: none !important;
+        padding: 15px 30px !important;
+        font-weight: 600 !important;
         width: 100% !important;
-        box-shadow: 0 10px 20px rgba(0,0,0,0.4) !important;
-        text-shadow: none !important;
+        transition: 0.3s;
+    }}
+    .stButton>button:hover {{
+        background: #3e7a36 !important;
+        transform: translateY(-2px);
     }}
     </style>
     
-    <div class="speech-bubble">안녕! 난 지구 구출 대장<br>에코룡이야! 준비됐어? 🦖</div>
-    <div class="ecoryong-container">
+    <div class="speech-bubble">“오늘도 자연을 위한<br>작은 기록을 시작해볼까요?”</div>
+    <div class="mascot-container">
         <img src="{mascot_src}" width="100%">
     </div>
     """, unsafe_allow_html=True)
@@ -160,59 +154,80 @@ if 'step' not in st.session_state: st.session_state.step = 1
 if 'guide' not in st.session_state: st.session_state.guide = ""
 if 'verified' not in st.session_state: st.session_state.verified = False
 
-# --- [5. 메인 UI 구성] ---
-score = load_score()
-st.markdown(f'<div class="score-badge">🏆 {score}점</div>', unsafe_allow_html=True)
-st.markdown('<h1 class="main-title">에코룡의<br>지구 구출 작전</h1>', unsafe_allow_html=True)
+# --- [5. 메인 UI 레이아웃] ---
+st.markdown('<h1 class="main-title">Nature Connect</h1>', unsafe_allow_html=True)
+st.markdown('<p class="sub-title">CIRCULAR LIFE PROJECT</p>', unsafe_allow_html=True)
 
-_, col_main, _ = st.columns([1, 4, 1])
+col_left, col_main, col_right = st.columns([1, 2.5, 1.2])
 
+# [오른쪽: 세련된 통계 패널]
+with col_right:
+    score = load_score()
+    st.markdown(f"""
+        <div class="stat-panel">
+            <p style="margin:0; font-size:0.9rem; opacity:0.8;">OUR IMPACT</p>
+            <h2 style="margin:10px 0; color:white !important;">현재 {score}번의 실천</h2>
+            <hr style="opacity:0.2;">
+            <p style="font-size:0.85rem; line-height:1.6; opacity:0.9;">
+                <b>💡 오늘의 에코 팁</b><br>
+                영수증은 재활용이 되지 않는 일반 쓰레기입니다. 모바일 영수증을 애용해 주세요!
+            </p>
+        </div>
+    """, unsafe_allow_html=True)
+
+# [중앙: 메인 액션 카드]
 with col_main:
+    st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+    
     if not model:
-        st.error("사용 가능한 모델을 찾는 데 실패했습니다. API 키나 서버를 확인해주세요.")
-        st.stop()
-
-    if st.session_state.step == 1:
-        st.markdown("### 📸 1단계: 배출 전 사진 촬영")
-        img1 = st.camera_input("", key="cam1")
-        if img1:
-            if st.button("에코룡, 어떻게 버려? 💡"):
-                with st.spinner("에코룡이 분석 중..."):
-                    try:
-                        res = model.generate_content(["이 물건 분리배출법 3줄 요약해줘. 특히 우유팩은 씻어서 펼쳐야 한다고 강조해줘.", Image.open(img1)])
-                        st.session_state.guide = res.text
-                        st.session_state.step = 2
-                        st.rerun()
-                    except Exception as e:
-                        if "429" in str(e): st.error("🚨 한도 초과! 1분만 기다려주세요.")
-                        else: st.error(f"오류: {e}")
-
-    elif st.session_state.step == 2:
-        st.markdown(f"<div style='background:rgba(255,255,255,0.3); padding:20px; border-radius:20px;'><p style='font-size:1.6rem;'>{st.session_state.guide}</p></div>", unsafe_allow_html=True)
-        st.markdown("### ✅ 2단계: 실천 인증샷 촬영")
-        img2 = st.camera_input("", key="cam2")
-        
-        c1, c2 = st.columns(2)
-        with c1:
-            if st.button("다시 찍기 🔄"):
-                st.session_state.step = 1; st.rerun()
-        with c2:
-            if img2 and not st.session_state.verified:
-                if st.button("인증 완료! ✅"):
-                    with st.spinner("현미경 검토 중..."):
+        st.error("AI 엔진을 불러올 수 없습니다. API 키를 확인해주세요.")
+    else:
+        if st.session_state.step == 1:
+            st.markdown("### 01. 배출 전 기록")
+            st.write("순환의 시작을 사진으로 남겨주세요. AI가 적절한 분류 방법을 제안합니다.")
+            img1 = st.camera_input("", key="cam1")
+            if img1:
+                if st.button("분석 시작하기"):
+                    with st.spinner("이미지를 분석하고 있습니다..."):
                         try:
-                            # 깐깐한 감독관 명령
-                            verify_prompt = f"가이드: {st.session_state.guide}. 우유팩이 평평하게 펼쳐져 있는지 확인해. 완벽하면 '인증성공'이라 말해."
-                            res = model.generate_content([verify_prompt, Image.open(img2)])
-                            if "인증성공" in res.text:
-                                add_score()
-                                st.session_state.verified = True
-                                st.balloons(); st.success(res.text)
-                            else: st.error(f"판정 결과: {res.text}")
+                            res = model.generate_content(["이 물건의 분리배출 핵심 팁을 2줄로 알려줘.", Image.open(img1)])
+                            st.session_state.guide = res.text
+                            st.session_state.step = 2
+                            st.rerun()
                         except Exception as e: st.error(f"오류: {e}")
 
-    if st.session_state.verified:
-        if st.button("다음 작전 수행 ➡️"):
-            st.session_state.step = 1; st.session_state.verified = False; st.rerun()
+        elif st.session_state.step == 2:
+            st.markdown(f"""
+                <div style="background:rgba(45,90,39,0.05); padding:20px; border-radius:15px; margin-bottom:25px;">
+                    <p style="margin:0; color:#2d5a27;"><b>🌱 AI의 가이드:</b> {st.session_state.guide}</p>
+                </div>
+            """, unsafe_allow_html=True)
+            st.markdown("### 02. 실천 인증")
+            st.write("안내에 따라 올바르게 분류된 모습을 보여주세요.")
+            img2 = st.camera_input("", key="cam2")
+            
+            c1, c2 = st.columns(2)
+            with c1:
+                if st.button("다시 시도"):
+                    st.session_state.step = 1; st.rerun()
+            with c2:
+                if img2 and not st.session_state.verified:
+                    if st.button("인증 완료"):
+                        with st.spinner("실천 내용을 확인 중입니다..."):
+                            try:
+                                # 검수 로직 완화: 펼치기 같은 디테일보다 '분리배출 완료' 여부에 집중
+                                res = model.generate_content(["가이드대로 적절히 분류하여 버릴 준비가 되었는지 확인해줘. 성공하면 반드시 '인증성공' 단어를 포함해줘.", Image.open(img2)])
+                                if "인증성공" in res.text or "성공" in res.text:
+                                    add_score()
+                                    st.session_state.verified = True
+                                    st.balloons(); st.success("소중한 실천이 기록되었습니다.")
+                                else: st.error(f"확인 결과: {res.text}")
+                            except Exception as e: st.error(f"오류: {e}")
 
-st.markdown("<p style='text-align:center; margin-top:100px; font-size:1.3rem;'>대지고등학교 환경 지킴이 | 캐릭터: 에코룡</p>", unsafe_allow_html=True)
+        if st.session_state.verified:
+            if st.button("새로운 기록 시작하기"):
+                st.session_state.step = 1; st.session_state.verified = False; st.rerun()
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+st.markdown("<p style='text-align:center; color:white; opacity:0.5; margin-top:50px;'>Nature Connect Project | 대지고등학교</p>", unsafe_allow_html=True)
