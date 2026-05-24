@@ -4,7 +4,7 @@ from PIL import Image
 import os
 import base64
 
-# --- [1. API 및 AI 모델 설정] ---
+# --- [1. API 및 AI 모델 설정 (404 원천 차단)] ---
 if "GEMINI_API_KEY" in st.secrets:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 else:
@@ -13,9 +13,18 @@ else:
 
 @st.cache_resource
 def get_stable_model():
+    """내 API 키로 사용 가능한 최적의 모델을 자동으로 찾아 연결합니다."""
     try:
+        # 우선순위 1: 가장 안정적인 이름 시도
         return genai.GenerativeModel('gemini-1.5-flash')
-    except: return None
+    except:
+        try:
+            # 우선순위 2: 목록을 훑어서 'flash'가 포함된 모델 자동 선택
+            for m in genai.list_models():
+                if 'generateContent' in m.supported_generation_methods and 'flash' in m.name:
+                    return genai.GenerativeModel(m.name)
+        except:
+            return None
 
 model = get_stable_model()
 
@@ -23,7 +32,7 @@ model = get_stable_model()
 def get_base64_image(image_path):
     if os.path.exists(image_path):
         with open(image_path, "rb") as f: return base64.b64encode(f.read()).decode()
-    return None
+    return ""
 
 ecoryong_b64 = get_base64_image("ecoryong.png")
 mascot_src = f"data:image/png;base64,{ecoryong_b64}" if ecoryong_b64 else ""
@@ -35,7 +44,7 @@ st.markdown(f"""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;700;900&display=swap');
 
-    /* [필살기] 상단 흰색 막대, 푸터 완전 박멸 */
+    /* 상단 흰색 막대, 푸터 완전 제거 */
     header, [data-testid="stHeader"], .stDeployButton, footer {{
         visibility: hidden !important;
         display: none !important;
@@ -44,19 +53,19 @@ st.markdown(f"""
 
     /* 전체 배경: 고화질 숲 */
     .stApp {{
-        background: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)),
+        background: linear-gradient(rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0.45)),
                     url("https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?ixlib=rb-1.2.1&auto=format&fit=crop&w=2000&q=80");
         background-size: cover;
         background-position: center;
         background-attachment: fixed;
     }}
 
-    /* [중앙 정렬 필살기] 모든 텍스트 정중앙 배치 및 아웃라인 */
-    h1, h2, h3, h4, p, span, label, .stMarkdown, div, .stFileUploader, .stCameraInput {{
+    /* [정중앙 정렬 + 흰색 글씨 + 검정 테두리] */
+    h1, h2, h3, h4, p, span, label, .stMarkdown, div, .stCameraInput {{
         color: #ffffff !important;
         font-family: 'Pretendard', sans-serif !important;
         font-weight: 800 !important;
-        text-align: center !important; /* 모든 텍스트 강제 중앙 */
+        text-align: center !important;
         text-shadow: 
             -3px -3px 0 #000,  
              3px -3px 0 #000,
@@ -66,25 +75,24 @@ st.markdown(f"""
              0px  3px 0 #000,
             -3px  0px 0 #000,
              3px  0px 0 #000,
-             5px 5px 15px rgba(0,0,0,0.5) !important;
+             4px 4px 10px rgba(0,0,0,0.6) !important;
     }}
 
-    /* 메인 타이틀 */
     .main-title {{
-        font-size: 6rem !important;
+        font-size: 5.5rem !important;
         font-weight: 900;
-        margin-top: 30px !important;
+        margin-top: 20px !important;
         letter-spacing: -2px;
     }}
 
     .sub-title {{
-        font-size: 1.5rem;
+        font-size: 1.4rem;
         letter-spacing: 10px;
         opacity: 0.9;
-        margin-bottom: 50px;
+        margin-bottom: 40px;
     }}
 
-    /* 에코룡 위치 (좌측 하단 고정) */
+    /* 에코룡 위치 고정 */
     .mascot-box {{
         position: fixed;
         bottom: -50px;
@@ -103,10 +111,11 @@ st.markdown(f"""
         border: 4px solid #059669;
         font-weight: 800;
         color: #064e3b !important;
-        text-shadow: none !important; /* 말풍선만 테두리 제거 */
+        text-shadow: none !important;
         z-index: 1001;
         box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-        text-align: left !important; /* 말풍선 글씨는 왼쪽 정렬 */
+        text-align: left !important;
+        max-width: 280px;
     }}
 
     /* 버튼 스타일 */
@@ -115,15 +124,15 @@ st.markdown(f"""
         color: white !important;
         border: 3px solid white !important;
         border-radius: 20px !important;
-        font-size: 1.8rem !important;
+        font-size: 1.6rem !important;
         font-weight: 900 !important;
-        height: 80px !important;
+        height: 75px !important;
         width: 100% !important;
         text-shadow: none !important;
-        box-shadow: 0 10px 20px rgba(0,0,0,0.5) !important;
+        box-shadow: 0 10px 20px rgba(0,0,0,0.4) !important;
     }}
 
-    /* 카메라 입력창 정중앙 */
+    /* 카메라 입력창 중앙 정렬 */
     [data-testid="stCameraInput"] {{
         margin: 0 auto !important;
         border: 4px solid #ffffff !important;
@@ -138,7 +147,7 @@ st.markdown(f"""
     </div>
     """, unsafe_allow_html=True)
 
-# --- [4. 데이터 로직] ---
+# --- [4. 점수 관리 및 데이터] ---
 def load_score():
     if not os.path.exists("eco_score.txt"): return 0
     with open("eco_score.txt", "r") as f: 
@@ -160,52 +169,55 @@ if 'verified' not in st.session_state: st.session_state.verified = False
 st.markdown('<h1 class="main-title">Nature Connect</h1>', unsafe_allow_html=True)
 st.markdown('<p class="sub-title">CIRCULAR LIFE PROJECT</p>', unsafe_allow_html=True)
 
-# [중앙 정렬을 위해 3단 컬럼 사용]
-col_left, col_center, col_right = st.columns([0.8, 3, 0.8])
+# 3단 컬럼으로 중앙 정렬 강제
+col_l, col_center, col_r = st.columns([0.7, 3, 0.7])
 
 with col_center:
-    # 점수 표시 (가운데 위)
     score = load_score()
     st.markdown(f"### CUMULATIVE IMPACT: {score}")
     st.markdown("---")
 
-    if st.session_state.step == 1:
-        st.markdown("### 🔍 01. 대상 기록")
-        st.write("순환이 필요한 자원을 카메라에 담아주세요.")
-        img1 = st.camera_input("", key="cam1")
-        if img1:
-            if st.button("분석 엔진 가동"):
-                with st.spinner("이미지 식별 중..."):
-                    try:
-                        res = model.generate_content(["이 물건의 분리배출 팁을 2줄로 알려줘.", Image.open(img1)])
-                        st.session_state.guide = res.text
-                        st.session_state.step = 2
-                        st.rerun()
-                    except Exception as e: st.error(f"Error: {e}")
+    if not model:
+        st.error("❌ 서버 연결 실패: API 키를 확인하거나 Reboot App을 실행해주세요.")
+    else:
+        if st.session_state.step == 1:
+            st.markdown("### 🔍 01. 대상 기록")
+            st.write("순환이 필요한 자원을 카메라에 담아주세요.")
+            img1 = st.camera_input("", key="cam1")
+            if img1:
+                if st.button("분석 엔진 가동"):
+                    with st.spinner("이미지 식별 중..."):
+                        try:
+                            res = model.generate_content(["이 물건의 분리배출 팁을 2줄로 짧게.", Image.open(img1)])
+                            st.session_state.guide = res.text
+                            st.session_state.step = 2
+                            st.rerun()
+                        except Exception as e:
+                            if "429" in str(e): st.error("🚨 사용자가 많습니다. 1분만 기다려주세요.")
+                            else: st.error(f"오류: {e}")
 
-    elif st.session_state.step == 2:
-        st.markdown(f"### 🌱 가이드")
-        st.markdown(f"<p style='font-size:1.5rem;'>{st.session_state.guide}</p>", unsafe_allow_html=True)
-        st.markdown("### ✨ 02. 가치 증명")
-        st.write("분류가 완료된 실천의 모습을 촬영해주세요.")
-        img2 = st.camera_input("", key="cam2")
-        
-        st.write("")
-        if img2 and not st.session_state.verified:
-            if st.button("실천 기록하기"):
-                with st.spinner("검증 중..."):
-                    try:
-                        res = model.generate_content(["가이드대로 적절히 분류되었는지 확인해줘. 성공하면 반드시 '인증성공' 단어 포함.", Image.open(img2)])
-                        if "인증성공" in res.text or "성공" in res.text:
-                            add_score()
-                            st.session_state.verified = True
-                            st.balloons()
-                            st.success("소중한 변화가 기록되었습니다.")
-                        else: st.error(f"결과: {res.text}")
-                    except Exception as e: st.error(f"Error: {e}")
-        
-        if st.button("처음으로"):
-            st.session_state.step = 1; st.rerun()
+        elif st.session_state.step == 2:
+            st.markdown("### 🌱 AI 가이드")
+            st.markdown(f"<p style='font-size:1.4rem;'>{st.session_state.guide}</p>", unsafe_allow_html=True)
+            st.markdown("### ✨ 02. 가치 증명")
+            st.write("분류가 완료된 실천의 모습을 촬영해주세요.")
+            img2 = st.camera_input("", key="cam2")
+            
+            if img2 and not st.session_state.verified:
+                if st.button("실천 기록하기"):
+                    with st.spinner("검증 진행 중..."):
+                        try:
+                            res = model.generate_content([f"가이드: {st.session_state.guide}. 잘 분류됐으면 '인증성공' 단어 포함해줘.", Image.open(img2)])
+                            if "인증성공" in res.text or "성공" in res.text:
+                                add_score()
+                                st.session_state.verified = True
+                                st.balloons()
+                                st.success("변화가 기록되었습니다!")
+                            else: st.error(f"판정: {res.text}")
+                        except Exception as e: st.error(f"Error: {e}")
+            
+            if st.button("처음으로"):
+                st.session_state.step = 1; st.rerun()
 
     if st.session_state.verified:
         if st.button("새로운 순환 시작"):
