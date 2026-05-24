@@ -224,4 +224,4 @@ with col_main:
         if st.button("다음 물건 판독하기 ➡️"):
             st.session_state.step = 1; st.session_state.verified = False; st.rerun()
 
-st.markdown("<p style='text-align:center; color:white; opacity:0.6; margin-top:60px;'>대지고등학교 환경 프로젝트 팀</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align:center; color:white; opacity:0.6; margin-top:60px;'>대지고등학교 학교 특색 활동-바이브 코딩 팀</p>", unsafe_allow_html=True)
