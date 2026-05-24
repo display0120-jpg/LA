@@ -3,150 +3,125 @@ import google.generativeai as genai
 from PIL import Image
 import os
 
-# --- [1. 기본 설정 및 AI 연결] ---
-st.set_page_config(page_title="Eco-Bot 챌린지", page_icon="🦖", layout="wide")
-
+# --- [1. API 설정] ---
 if "GEMINI_API_KEY" in st.secrets:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 else:
     st.error("Secrets에 'GEMINI_API_KEY'를 등록해주세요!")
     st.stop()
 
-@st.cache_resource
-def get_model():
-    try:
-        # 모델명은 가장 안정적인 gemini-1.5-flash 사용
-        return genai.GenerativeModel('gemini-1.5-flash')
-    except: return None
+model = genai.GenerativeModel('gemini-1.5-flash')
 
-model = get_model()
+# --- [2. 디자인 세팅 (글씨가 무조건 보이게)] ---
+st.set_page_config(page_title="Eco-Bot 챌린지", page_icon="🦖", layout="wide")
 
-# --- [2. 역대급 가독성 & 오리지널 캐릭터 CSS] ---
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Pretendard:wght@700;900&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Pretendard:wght@800;900&display=swap');
 
-    /* 배경: 숲 배경 + 가독성을 위해 전체적으로 어두운 필터(Overlay)를 강하게 적용 */
+    /* 배경: 숲 사진은 유지하되, 전체적으로 흐리게(Blur) 처리하여 글씨에 집중 */
     .stApp {
-        background: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), 
-                    url("https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?ixlib=rb-1.2.1&auto=format&fit=crop&w=2000&q=80");
+        background: url("https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?ixlib=rb-1.2.1&auto=format&fit=crop&w=2000&q=80");
         background-size: cover;
         background-position: center;
         background-attachment: fixed;
     }
 
-    /* 메인 카드: 가독성을 위해 완전 불투명한 흰색 배경 사용 */
-    .main-container {
-        background: #ffffff;
-        border-radius: 40px;
-        padding: 50px;
-        box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5);
-        margin: 40px auto;
-        max-width: 850px;
-        border: 10px solid #059669; /* 진한 초록색 테두리 */
-        position: relative;
+    /* 상단 제목 섹션: 흰색 박스를 깔아서 무조건 보이게 함 */
+    .header-box {
+        background: white;
+        padding: 20px;
+        border-radius: 20px;
+        border: 5px solid #059669;
+        text-align: center;
+        margin-bottom: 30px;
+        box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+    }
+    
+    .header-box h1 {
+        font-family: 'Black Han Sans', sans-serif;
+        font-size: 4rem;
+        color: #059669;
+        margin: 0;
     }
 
-    /* 에코룡 캐릭터 (2D 일러스트 스타일 고정 배치) */
-    .mascot-container {
+    /* 메인 컨텐츠 카드: 완전 불투명한 흰색 배경 사용 (가독성 100%) */
+    .main-container {
+        background: #ffffff !important;
+        border-radius: 30px;
+        padding: 40px;
+        border: 8px solid #059669;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+        margin: 0 auto;
+        max-width: 800px;
+        color: #000000 !important; /* 모든 글씨 검정색 */
+    }
+
+    /* 모든 텍스트 강제 검정색 및 굵게 */
+    .stMarkdown, .stText, p, span, label {
+        color: #000000 !important;
+        font-weight: 800 !important;
+        font-size: 1.2rem;
+    }
+
+    /* 캐릭터 에코룡 (화면 좌측 하단 고정) */
+    .mascot-img {
         position: fixed;
-        bottom: 0px;
+        bottom: -20px;
         left: 20px;
-        width: 350px;
-        z-index: 100;
-        pointer-events: none; /* 클릭 방해 금지 */
+        width: 320px;
+        z-index: 9999;
     }
     
     .speech-bubble {
         position: fixed;
-        bottom: 350px;
-        left: 80px;
-        background: #fde047; /* 노란색 말풍선으로 시선 집중 */
-        color: #000000;
-        padding: 20px 30px;
-        border-radius: 30px;
-        border: 4px solid #000000;
-        font-family: 'Pretendard', sans-serif;
-        font-weight: 800;
-        font-size: 1.3rem;
-        z-index: 101;
-        box-shadow: 8px 8px 0px rgba(0,0,0,0.2);
-    }
-
-    /* 텍스트 가독성 최우선 설정 */
-    .super-title {
-        font-family: 'Black Han Sans', sans-serif;
-        font-size: 5rem;
-        color: #ffffff;
-        text-align: center;
-        text-shadow: 4px 4px 0px #059669; /* 제목 테두리 효과 */
-        margin-top: 30px;
-        letter-spacing: -2px;
-    }
-
-    .card-title {
-        color: #064e3b;
+        bottom: 280px;
+        left: 60px;
+        background: #fde047;
+        color: black;
+        padding: 20px;
+        border-radius: 20px;
+        border: 4px solid black;
         font-family: 'Pretendard', sans-serif;
         font-weight: 900;
-        font-size: 2.2rem;
-        margin-bottom: 20px;
-        display: inline-block;
-        border-bottom: 8px solid #10b981;
+        z-index: 10000;
+        width: 220px;
+        box-shadow: 5px 5px 0px rgba(0,0,0,0.2);
     }
 
-    /* 카드 내부 모든 글씨를 진하게 처리하여 가독성 확보 */
-    .info-text {
-        color: #000000 !important;
-        font-size: 1.4rem;
-        line-height: 1.6;
-        font-weight: 800;
-        margin-bottom: 20px;
+    /* 점수판: 노란색 고대비 박스 */
+    .score-badge {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #fde047;
+        color: black;
+        padding: 15px 30px;
+        border: 4px solid black;
+        border-radius: 15px;
+        font-family: 'Black Han Sans', sans-serif;
+        font-size: 1.8rem;
+        z-index: 1000;
     }
 
     /* 버튼 스타일 */
     .stButton>button {
         background: #059669 !important;
-        color: #ffffff !important;
-        border: 4px solid #000000 !important;
-        border-radius: 20px !important;
-        padding: 20px !important;
-        font-size: 1.6rem !important;
+        color: white !important;
+        font-size: 1.5rem !important;
         font-weight: 900 !important;
-        width: 100% !important;
-        box-shadow: 0 10px 0px #022c22 !important;
-        transition: all 0.1s;
-    }
-    .stButton>button:active {
-        transform: translateY(5px);
-        box-shadow: 0 5px 0px #022c22 !important;
-    }
-
-    /* 점수판 디자인 */
-    .score-badge {
-        position: fixed;
-        top: 30px;
-        right: 40px;
-        background: #fde047;
-        color: #000;
-        padding: 20px 40px;
-        border: 5px solid #000;
-        border-radius: 20px;
-        font-family: 'Black Han Sans', sans-serif;
-        font-size: 2rem;
-        transform: rotate(3deg);
-        z-index: 100;
+        border-radius: 15px !important;
+        border: 4px solid black !important;
+        height: 80px !important;
     }
     </style>
     
-    <!-- 캐릭터: 에코룡 (2D 공룡 캐릭터 일러스트) -->
-    <div class="speech-bubble">거기 너!<br>우유팩 안 펼치면<br>에코룡이 혼낸다! 🦖</div>
-    <div class="mascot-container">
-        <!-- 실제 2D 일러스트 느낌의 공룡 캐릭터 사용 -->
-        <img src="https://cdni.iconscout.com/illustration/premium/thumb/cute-dinosaur-illustration-download-in-svg-png-gif-file-formats--monster-character-green-pack-fantasy-illustrations-5386057.png" width="380">
-    </div>
+    <!-- 캐릭터와 말풍선 -->
+    <div class="speech-bubble">거기 너! 우유팩 펼쳤어? 안 펼치면 에코룡이 쫓아간다! 🦖</div>
+    <img src="https://cdni.iconscout.com/illustration/premium/thumb/cute-dinosaur-illustration-download-in-svg-png-gif-file-formats--monster-character-green-pack-fantasy-illustrations-5386057.png" class="mascot-img">
     """, unsafe_allow_html=True)
 
-# --- [3. 데이터 로직] ---
+# --- [3. 데이터 및 상태 로직] ---
 def load_score():
     if not os.path.exists("eco_score.txt"): return 0
     with open("eco_score.txt", "r") as f: 
@@ -162,46 +137,44 @@ if 'step' not in st.session_state: st.session_state.step = 1
 if 'guide' not in st.session_state: st.session_state.guide = ""
 if 'verified' not in st.session_state: st.session_state.verified = False
 
-# --- [4. 메인 UI 화면 구성] ---
+# --- [4. 메인 화면 구성] ---
 score = load_score()
-st.markdown(f'<div class="score-badge">🏆 우리 반 점수: {score}점</div>', unsafe_allow_html=True)
+st.markdown(f'<div class="score-badge">🏆 점수: {score}점</div>', unsafe_allow_html=True)
 
-st.markdown('<h1 class="super-title">Eco-Bot 챌린지</h1>', unsafe_allow_html=True)
+# 헤더 섹션
+st.markdown('<div class="header-box"><h1>♻️ Eco-Bot 챌린지</h1></div>', unsafe_allow_html=True)
 
-col1, col2, col3 = st.columns([1, 4, 1])
+# 중앙 컨텐츠
+col_l, col_m, col_r = st.columns([1, 5, 1])
 
-with col2:
+with col_m:
     st.markdown('<div class="main-container">', unsafe_allow_html=True)
 
-    # 1단계: 가이드 생성
     if st.session_state.step == 1:
-        st.markdown('<span class="card-title">📸 1단계: 배출 전 촬영</span>', unsafe_allow_html=True)
-        st.markdown('<p class="info-text">쓰레기통에 넣기 전의 사진을 찍어줘!<br>에코룡이 어떻게 버리는지 감시할 거야.</p>', unsafe_allow_html=True)
+        st.markdown("### 📸 1단계: 원래 상태 찍기")
+        st.write("버리기 전 사진을 찍으세요. 에코룡이 방법을 알려줄게요.")
         img1 = st.camera_input("촬영하기", key="cam1")
-        
         if img1:
-            if st.button("에코룡에게 배출법 물어보기 💡"):
-                with st.spinner("에코룡이 깐깐하게 분석 중..."):
+            if st.button("에코룡에게 물어보기 💡"):
+                with st.spinner("에코룡이 분석 중..."):
                     try:
-                        prompt = "이 물건의 분리배출법을 한국어로 3줄 요약해줘. 특히 우유팩이라면 반드시 '씻어서 펼치기'를 강조해."
-                        res = model.generate_content([prompt, Image.open(img1)])
+                        res = model.generate_content(["이 쓰레기 분리배출법 3줄 요약해줘. 특히 우유팩은 반드시 펼치라고 말해줘.", Image.open(img1)])
                         st.session_state.guide = res.text
                         st.session_state.step = 2
                         st.rerun()
                     except Exception as e: st.error(f"오류: {e}")
 
-    # 2단계: 깐깐한 인증
     elif st.session_state.step == 2:
-        st.markdown('<span class="card-title">📝 에코룡의 특명</span>', unsafe_allow_html=True)
         st.markdown(f"""
-            <div style="background:#f0fdf4; padding:25px; border-radius:20px; border:4px solid #059669; margin-bottom:25px; font-size:1.4rem; color:#000000; font-weight:800;">
-                {st.session_state.guide}
+            <div style="background:#f0fdf4; padding:20px; border-radius:15px; border:4px solid #059669; margin-bottom:20px;">
+                <h4 style="color:#059669; margin-top:0;">📝 에코룡의 지시사항</h4>
+                <p style="color:black;">{st.session_state.guide}</p>
             </div>
         """, unsafe_allow_html=True)
         
-        st.markdown('<span class="card-title">✅ 2단계: 실천 인증샷</span>', unsafe_allow_html=True)
-        st.markdown('<p class="info-text">가이드대로 정리했지? <br><b>우유팩이 입체적이면 가차없이 탈락이야!</b></p>', unsafe_allow_html=True)
-        img2 = st.camera_input("인증샷 촬영", key="cam2")
+        st.markdown("### ✅ 2단계: 실천 인증하기")
+        st.write("우유팩은 쫙 펼치고, 라벨은 다 뗐나요? 제대로 안 하면 실패입니다!")
+        img2 = st.camera_input("인증샷 찍기", key="cam2")
         
         c1, c2 = st.columns(2)
         with c1:
@@ -209,35 +182,31 @@ with col2:
                 st.session_state.step = 1; st.rerun()
         with c2:
             if img2 and not st.session_state.verified:
-                if st.button("에코룡에게 인증 받기! ✅"):
+                if st.button("에코룡에게 인증받기! ✅"):
                     with st.spinner("현미경 검사 중..."):
                         try:
+                            # 깐깐한 프롬프트
                             verify_prompt = f"""
                             가이드: {st.session_state.guide}
-                            너는 세계에서 가장 무서운 환경 감시 공룡 '에코룡'이야.
-                            [검사 규칙]
-                            1. 우유팩: 반드시 평평하게 펼쳐져 있어야 함. 입체적이면 무조건 '인증실패'.
-                            2. 라벨: 페트병 라벨이 남아있으면 '인증실패'.
-                            모든 조건이 완벽하면 '인증성공'이라 말하고 칭찬해.
+                            사진을 보고 다음을 검사해. 
+                            1. 우유팩은 무조건 평평하게 펼쳐져 있어야 함. 입체적이면 무조건 '인증실패'.
+                            2. 페트병은 라벨이 제거되어야 함.
+                            완벽하면 '인증성공'이라 말해줘.
                             """
                             res = model.generate_content([verify_prompt, Image.open(img2)])
-                            
                             if "인증성공" in res.text:
                                 add_score()
                                 st.session_state.verified = True
                                 st.balloons()
                                 st.success(res.text)
                             else:
-                                st.error(f"🚫 반려됨: {res.text}")
+                                st.error(f"실패: {res.text}")
                         except Exception as e: st.error(f"오류: {e}")
 
     if st.session_state.verified:
-        if st.button("다음 미션 수행하기 ➡️"):
+        if st.button("다음 미션 하러 가기 ➡️"):
             st.session_state.step = 1
             st.session_state.verified = False
             st.rerun()
 
     st.markdown('</div>', unsafe_allow_html=True)
-
-# --- [5. 푸터] ---
-st.markdown("<p style='text-align:center; color:#ffffff; font-weight:bold; font-size:1.2rem; margin-top:50px;'>대지고등학교 환경 프로젝트 | 캐릭터: 에코룡 (Eco-Ryong)</p>", unsafe_allow_html=True)
