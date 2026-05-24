@@ -11,23 +11,19 @@ else:
     st.error("Secrets에 'GEMINI_API_KEY'를 등록해주세요!")
     st.stop()
 
-# 404 에러 방지: 가장 안정적인 모델 호출 방식
+# 404 에러 방지: 가장 최신 버전의 모델 호출 방식을 사용합니다.
 @st.cache_resource
 def load_stable_model():
-    # 1.5-flash 모델을 찾기 위해 가장 표준적인 이름을 사용합니다.
     try:
+        # v1beta 대신 최신 API를 사용하도록 유도하는 표준 이름 사용
         return genai.GenerativeModel('gemini-1.5-flash')
-    except:
-        # 실패 시 -latest를 붙인 이름을 시도합니다.
-        try:
-            return genai.GenerativeModel('gemini-1.5-flash-latest')
-        except Exception as e:
-            st.error(f"모델 로드 실패: {e}")
-            return None
+    except Exception as e:
+        st.error(f"모델 로드 중 오류가 발생했습니다: {e}")
+        return None
 
 model = load_stable_model()
 
-# --- [2. 이미지 로드 로직] ---
+# --- [2. 이미지 로드 로직 (에코룡 캐릭터)] ---
 def get_base64_image(image_path):
     if os.path.exists(image_path):
         try:
@@ -37,15 +33,17 @@ def get_base64_image(image_path):
     return None
 
 ecoryong_base64 = get_base64_image("ecoryong.png")
+# 이미지가 있으면 사용자 이미지, 없으면 예비 아이콘 사용
 mascot_src = f"data:image/png;base64,{ecoryong_base64}" if ecoryong_base64 else "https://cdn-icons-png.flaticon.com/512/2312/2312218.png"
 
-# --- [3. 디자인 (에코룡 & 말풍선 위치 미세조정 반영)] ---
+# --- [3. 디자인 (에코룡/말풍선 위치 및 가독성 고정)] ---
 st.set_page_config(page_title="에코룡의 지구 구출 작전", page_icon="🦖", layout="wide")
 
 st.markdown(f"""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Pretendard:wght@900&display=swap');
 
+    /* 배경 설정 */
     .stApp {{
         background: linear-gradient(rgba(0,0,0,0.15), rgba(0,0,0,0.15)),
                     url("https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?ixlib=rb-1.2.1&auto=format&fit=crop&w=2000&q=80");
@@ -75,7 +73,7 @@ st.markdown(f"""
         line-height: 1.1;
     }}
 
-    /* 에코룡 위치: 요청하신 대로 살짝 왼쪽 아래로 */
+    /* 에코룡 위치: 살짝 왼쪽 아래 (-65px, -30px) */
     .ecoryong-container {{
         position: fixed;
         bottom: -65px; 
@@ -85,7 +83,7 @@ st.markdown(f"""
         pointer-events: none;
     }}
     
-    /* 말풍선 위치: 요청하신 대로 왼쪽 위로 */
+    /* 말풍선 위치: 왼쪽 위 (bottom: 480px, left: 20px) */
     .speech-bubble {{
         position: fixed;
         bottom: 480px; 
@@ -138,7 +136,7 @@ st.markdown(f"""
     </div>
     """, unsafe_allow_html=True)
 
-# --- [4. 데이터 로직] ---
+# --- [4. 데이터 및 점수 로직] ---
 def load_score():
     if not os.path.exists("eco_score.txt"): return 0
     with open("eco_score.txt", "r") as f: 
@@ -163,7 +161,7 @@ _, col_main, _ = st.columns([1, 4, 1])
 
 with col_main:
     if not model:
-        st.error("❌ AI 모델을 불러오지 못했습니다. 잠시 후 새로고침 해주세요.")
+        st.error("AI 모델을 초기화하지 못했습니다. 잠시 후 새로고침 해주세요.")
         st.stop()
 
     if st.session_state.step == 1:
@@ -171,14 +169,14 @@ with col_main:
         img1 = st.camera_input("", key="cam1")
         if img1:
             if st.button("에코룡, 어떻게 버려? 💡"):
-                with st.spinner("분석 중..."):
+                with st.spinner("에코룡이 분석 중..."):
                     try:
-                        res = model.generate_content(["이 물건 분리배출법 3줄 요약. 우유팩은 펼쳐야 한다고 강조해줘.", Image.open(img1)])
+                        res = model.generate_content(["이 물건 분리배출법 3줄 요약해줘. 특히 우유팩은 씻어서 펼쳐야 한다고 강조해줘.", Image.open(img1)])
                         st.session_state.guide = res.text
                         st.session_state.step = 2
                         st.rerun()
                     except Exception as e:
-                        if "429" in str(e): st.error("🚨 한도 초과! 1분 뒤에 다시 해주세요.")
+                        if "429" in str(e): st.error("🚨 한도 초과! 1분만 기다려주세요.")
                         else: st.error(f"오류: {e}")
 
     elif st.session_state.step == 2:
@@ -193,9 +191,9 @@ with col_main:
         with c2:
             if img2 and not st.session_state.verified:
                 if st.button("인증 완료! ✅"):
-                    with st.spinner("검수 중..."):
+                    with st.spinner("현미경 검토 중..."):
                         try:
-                            res = model.generate_content([f"가이드: {st.session_state.guide}. 우유팩이 평평하게 펼쳐져 있는지 확인해. 완벽하면 '인증성공'이라 말해.", Image.open(img2)])
+                            res = model.generate_content([f"가이드: {st.session_state.guide}. 사진을 보고 미션을 완벽히 했는지 확인해. 잘 했으면 '인증성공'이라 말해.", Image.open(img2)])
                             if "인증성공" in res.text:
                                 add_score()
                                 st.session_state.verified = True
