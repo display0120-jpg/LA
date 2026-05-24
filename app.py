@@ -2,163 +2,95 @@ import streamlit as st
 import google.generativeai as genai
 from PIL import Image
 import os
-from datetime import datetime
 
-# --- [VIBE DESIGN] 애플&민트 스타일 커스텀 디자인 ---
-st.set_page_config(page_title="대지고 탄소 다이어트", page_icon="🌱", layout="centered")
+# --- [DESIGN] 앱 디자인 세팅 ---
+st.set_page_config(page_title="대지고 탄소 다이어트 V2", page_icon="♻️", layout="centered")
 
 st.markdown("""
     <style>
-    /* 전체 배경색 - 연한 민트 */
-    .stApp {
-        background-color: #F0FFF4;
-    }
-    
-    /* 제목 스타일 */
-    .main-title {
-        color: #2D3748;
-        font-family: 'Pretendard', sans-serif;
-        font-weight: 800;
-        text-align: center;
-        padding-top: 20px;
-    }
-    
-    /* 점수판 카드 디자인 */
-    .score-card {
-        background-color: white;
-        padding: 25px;
-        border-radius: 20px;
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-        text-align: center;
-        margin-bottom: 25px;
-        border: 2px solid #C6F6D5;
-    }
-    
-    /* 버튼 스타일 - 진한 초록 & 둥글게 */
-    .stButton>button {
-        width: 100%;
-        background-color: #2F855A !important;
-        color: white !important;
-        border-radius: 15px !important;
-        border: none !important;
-        padding: 12px 0px !important;
-        font-size: 18px !important;
-        font-weight: 600 !important;
-        transition: all 0.3s ease;
-    }
-    
-    .stButton>button:hover {
-        transform: scale(1.02);
-        background-color: #276749 !important;
-    }
-    
-    /* AI 분석 결과 박스 */
-    .analysis-box {
-        background-color: #FFFFFF;
-        padding: 20px;
-        border-radius: 15px;
-        border-left: 6px solid #48BB78;
-        margin-top: 20px;
-    }
+    .stApp { background-color: #F0FFF4; }
+    .main-title { color: #2D3748; text-align: center; font-weight: 800; }
+    .step-box { background-color: white; padding: 20px; border-radius: 15px; border: 2px solid #C6F6D5; margin-bottom: 20px; }
+    .stButton>button { width: 100%; border-radius: 15px !important; background-color: #2F855A !important; color: white !important; font-weight: 700 !important; height: 3em !important; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- [CORE LOGIC] API 및 데이터 관리 ---
-
-# API 키 설정 (Streamlit Secrets 필수)
+# --- [LOGIC] API 및 세션 상태 설정 ---
 if "GEMINI_API_KEY" in st.secrets:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 else:
-    st.error("🔑 Streamlit Secrets에 GEMINI_API_KEY를 등록해주세요!")
+    st.error("Secrets에 API 키를 설정해주세요!")
     st.stop()
 
-# 사용 가능한 모델 자동 찾기
-@st.cache_resource
-def get_ai_model():
-    try:
-        # 모델 목록을 가져와서 가장 적합한 것 선택
-        models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-        model_name = "gemini-1.5-flash" if "models/gemini-1.5-flash" in models else models[0]
-        return genai.GenerativeModel(model_name)
-    except:
-        return None
+# 2단계 인증을 위한 상태 기억장치
+if 'step' not in st.session_state: st.session_state.step = 1  # 1: 진단, 2: 확인
+if 'instructions' not in st.session_state: st.session_state.instructions = ""
 
-model = get_ai_model()
+model = genai.GenerativeModel('gemini-1.5-flash')
 
-# 점수 파일 관리
 def load_score():
-    if not os.path.exists("class_score.txt"):
-        with open("class_score.txt", "w") as f: f.write("0")
-    with open("class_score.txt", "r") as f:
-        return int(f.read())
+    if not os.path.exists("class_score.txt"): return 0
+    with open("class_score.txt", "r") as f: return int(f.read())
 
-def update_score():
-    new_score = load_score() + 1
-    with open("class_score.txt", "w") as f:
-        f.write(str(new_score))
-    return new_score
+def add_score():
+    score = load_score() + 1
+    with open("class_score.txt", "w") as f: f.write(str(score))
+    return score
 
-# --- [SCREEN] 화면 구성 시작 ---
+# --- [UI] 메인 화면 ---
+st.markdown("<h1 class='main-title'>🌱 대지고 2단계 인증 챌린지</h1>", unsafe_allow_html=True)
+score = load_score()
+st.info(f"📊 우리 반 누적 인증: {score}회 | 100회까지 파이팅!")
 
-st.markdown("<h1 class='main-title'>🌱 대지고 탄소 다이어트</h1>", unsafe_allow_html=True)
-st.write("<p style='text-align:center; color:#4A5568;'>우리 반의 실천으로 지구의 온도를 낮춰요!</p>", unsafe_allow_html=True)
-
-# 1. 메인 점수판 게이지
-current_score = load_score()
-goal = 100
-
-st.markdown(f"""
-    <div class="score-card">
-        <span style="color: #4A5568; font-size: 16px;">우리 반 누적 인증</span>
-        <h2 style="color: #2F855A; margin: 5px 0;">{current_score}회</h2>
-    </div>
-    """, unsafe_allow_html=True)
-
-st.progress(min(current_score / goal, 1.0))
-st.caption(f"목표 100회까지 {max(goal - current_score, 0)}회 남았습니다! 🔥")
-
-st.divider()
-
-# 2. 사진 찍기 및 분석
-st.subheader("📸 분리배출 인증샷")
-img_file = st.camera_input("쓰레기 사진을 찍으면 AI가 분석해줍니다.")
-
-if img_file:
-    img = Image.open(img_file)
-    st.image(img, caption="인증 대기 중...", use_container_width=True)
+# --- [STAGE 1] 쓰레기 진단 단계 ---
+if st.session_state.step == 1:
+    st.subheader("1️⃣ 1단계: 쓰레기 상태 진단")
+    st.write("버리기 전 상태의 사진을 찍어주세요.")
     
-    if st.button("AI 환경 전문가에게 물어보기 ✨"):
-        if model:
-            with st.spinner("AI 전문가가 꼼꼼하게 사진을 보는 중..."):
-                try:
-                    prompt = """
-                    너는 학교 환경 교육 전문가야. 학생이 찍은 쓰레기 사진을 보고 다음 양식으로 아주 구체적으로 답해줘.
-                    1. [진단]: 사진 속 물건이 무엇인지, 비닐 라벨이 붙어있는지, 이물질이 있는지 정확히 짚어줘. (예: '앗! 페트병에 비닐 라벨이 그대로 붙어있네요!')
-                    2. [행동]: '이것은 [재질]로 분류되지만, 반드시 [어떤 행동]을 해야 합니다.'라는 핵심 문구를 포함해줘.
-                    3. [응원]: 실천을 독려하는 따뜻한 응원 메시지 한 줄과 줄인 탄소량을 예측해서 적어줘.
-                    """
-                    response = model.generate_content([prompt, img])
-                    
-                    st.markdown(f"""
-                        <div class="analysis-box">
-                            <h4 style="margin-top:0; color:#2F855A;">📋 AI 분석 결과</h4>
-                            {response.text}
-                        </div>
-                        """, unsafe_allow_html=True)
-                    
-                    # 인증 버튼 (분석 후에만 등장)
-                    st.write("")
-                    if st.button("✅ 올바르게 배출했어요! 인증하기"):
-                        new_total = update_score()
-                        st.balloons() # 풍선 팡팡!
-                        st.success(f"인증 성공! 우리 반의 점수가 {new_total}점이 되었습니다! 🎉")
-                        st.rerun()
-                        
-                except Exception as e:
-                    st.error(f"분석 중 오류가 발생했어요. 다시 시도해볼까요? (에러: {e})")
-        else:
-            st.error("AI 모델을 불러오지 못했습니다. API 키 설정을 확인해주세요.")
+    before_img = st.camera_input("전 사진 촬영", key="before_cam")
+    
+    if before_img:
+        if st.button("분리배출 방법 알아보기 ✨"):
+            with st.spinner("AI가 분석 중..."):
+                img = Image.open(before_img)
+                prompt = "이 쓰레기를 분리배출하기 위해 사용자가 '지금 당장 해야 할 구체적인 행동'을 알려줘. 예: 비닐 떼기, 씻기 등. 아주 짧고 명확하게!"
+                response = model.generate_content([prompt, img])
+                
+                st.session_state.instructions = response.text
+                st.session_state.step = 2
+                st.rerun()
 
-# 하단 푸터
-st.markdown("<br><br>", unsafe_allow_html=True)
-st.caption("© 2024 대지고등학교 2학년 환경 자치회 프로젝트 | Created with Vibe Coding")
+# --- [STAGE 2] 결과 확인 단계 ---
+elif st.session_state.step == 2:
+    st.subheader("2️⃣ 2단계: 미션 수행 인증")
+    st.warning(f"🎯 미션: {st.session_state.instructions}")
+    st.write("위 방법대로 분리수거를 마친 사진을 찍어주세요.")
+    
+    after_img = st.camera_input("후 사진 촬영", key="after_cam")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("처음부터 다시 찍기"):
+            st.session_state.step = 1
+            st.rerun()
+            
+    with col2:
+        if after_img:
+            if st.button("최종 인증 받기 ✅"):
+                with st.spinner("미션을 잘 수행했는지 검사 중..."):
+                    img = Image.open(after_img)
+                    # 이전 지시사항을 바탕으로 검수 요청
+                    verify_prompt = f"사용자에게 준 지시사항은 이거였어: '{st.session_state.instructions}'. 사진을 보고 지시사항대로 잘 처리됐는지 확인해줘. 잘 됐으면 '성공'이라는 단어를 포함해서 칭찬해주고, 안 됐으면 뭐가 부족한지 알려줘."
+                    response = model.generate_content([verify_prompt, img])
+                    
+                    if "성공" in response.text or "통과" in response.text or "잘" in response.text:
+                        add_score()
+                        st.balloons()
+                        st.success(f"축하합니다! 미션 완료! {response.text}")
+                        if st.button("다음 쓰레기 인증하기"):
+                            st.session_state.step = 1
+                            st.rerun()
+                    else:
+                        st.error(f"앗! 조금 더 노력이 필요해요: {response.text}")
+
+st.caption("대지고 환경 프로젝트 | 실천하는 당신이 아름답습니다.")
