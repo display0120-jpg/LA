@@ -3,36 +3,26 @@ import google.generativeai as genai
 from PIL import Image
 import os
 
-# --- 1. API 설정 ---
-# 팁: 보안을 위해 Streamlit의 Secrets 기능을 쓰는 것이 좋지만, 우선 작동 확인을 위해 직접 넣으세요.
-GOOGLE_API_KEY = st.secrets["GEMINI_API_KEY"]
-genai.configure(api_key=GOOGLE_API_KEY)
+# --- 1. 보안 설정 (Secrets에서 키 가져오기) ---
+if "GEMINI_API_KEY" in st.secrets:
+    GOOGLE_API_KEY = st.secrets["GEMINI_API_KEY"]
+    genai.configure(api_key=GOOGLE_API_KEY)
+else:
+    st.error("🔑 API 키가 설정되지 않았습니다. Streamlit Cloud 설정의 Secrets 칸에 GEMINI_API_KEY를 입력해주세요.")
+    st.stop()
 
-# --- 2. 모델 자동 선택 시스템 (404 에러 방지 핵심) ---
+# --- 2. 모델 설정 (에러 방지용 자동 선택) ---
 @st.cache_resource
-def load_working_model():
+def load_model():
     try:
-        # 사용 가능한 모델 목록을 가져옵니다.
-        available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-        
-        # 1순위: gemini-1.5-flash, 2순위: gemini-1.5-pro, 3순위: 아무거나 첫번째
-        target_model = ""
-        if "models/gemini-1.5-flash" in available_models:
-            target_model = "gemini-1.5-flash"
-        elif "models/gemini-1.5-pro" in available_models:
-            target_model = "gemini-1.5-pro"
-        else:
-            # "models/" 접두사를 떼고 이름만 추출
-            target_model = available_models[0].split('/')[-1]
-            
-        return genai.GenerativeModel(target_model)
-    except Exception as e:
-        st.error(f"모델 목록을 불러오는데 실패했습니다. API 키가 활성화되었는지 확인하세요: {e}")
-        return None
+        # 사용 가능한 모델 중 gemini-1.5-flash를 최우선으로 선택
+        return genai.GenerativeModel('gemini-1.5-flash')
+    except:
+        return genai.GenerativeModel('gemini-pro-vision') # 백업용
 
-model = load_working_model()
+model = load_model()
 
-# --- 3. 데이터 저장 기능 ---
+# --- 3. 점수 저장 시스템 (파일 방식) ---
 def get_score():
     if not os.path.exists("score.txt"):
         with open("score.txt", "w") as f: f.write("0")
@@ -43,49 +33,53 @@ def save_score():
     with open("score.txt", "w") as f: f.write(str(current + 1))
     return current + 1
 
-# --- 4. 웹 UI 구성 ---
+# --- 4. 웹 화면 구성 (UI) ---
 st.set_page_config(page_title="우리 반 탄소 다이어트", page_icon="♻️")
-st.title("♻️ AI 분리배출 가이드")
 
-# 점수판
+st.title("♻️ AI 분리배출 가이드 & 탄소 다이어트")
+st.write("대지고등학교 통합사회 프로젝트 - 사진을 찍어 분리배출을 인증하세요!")
+
+# 점수 및 게이지 바
 score = get_score()
 st.subheader(f"📊 우리 반 누적 인증: {score}회")
-st.progress(min(score / 100, 1.0))
+st.progress(min(score / 100, 1.0)) # 100회 목표
+st.write(f"목표까지 {100 - score}번 남았습니다. 파이팅! 🔥")
 
 st.divider()
 
-# 사진 촬영 및 업로드
+# 사진 입력 (카메라 + 파일 업로드)
 img_file = st.camera_input("쓰레기 사진을 찍어주세요!")
+if not img_file:
+    img_file = st.file_uploader("또는 사진 파일을 올려주세요", type=['jpg', 'jpeg', 'png'])
 
 if img_file:
     img = Image.open(img_file)
-    st.image(img, caption="촬영된 사진", use_container_width=True)
+    st.image(img, caption="입력된 사진", use_container_width=True)
     
-    if st.button("AI 분석 시작"):
-        if model is None:
-            st.error("사용 가능한 AI 모델이 없습니다. API 키를 확인해 주세요.")
-        else:
-            with st.spinner("AI가 분석 중입니다... 잠시만 기다려 주세요."):
-                try:
-                    # 프롬프트 설정
-                    prompt = "이 사진 속 물건의 분리배출 방법을 '이것은 [재질]로 분류되지만 [어떻게] 해야 합니다'라는 문구와 함께 친절히 알려줘. 탄소 절감 효과도 꼭 포함해줘."
-                    
-                    # 분석 요청 (이미지 처리 방식 최신화)
-                    response = model.generate_content([prompt, img])
-                    
-                    if response.text:
-                        st.success("✅ AI 분석 결과")
-                        st.info(response.text)
-                        
-                        # 분석 성공시에만 인증 버튼 노출
-                        if st.button("실제로 분리수거 완료! 점수 올리기"):
-                            new_score = save_score()
-                            st.balloons()
-                            st.rerun()
-                    else:
-                        st.warning("AI가 답변을 생성하지 못했습니다. 다시 시도해 주세요.")
-                except Exception as e:
-                    st.error(f"분석 중 오류 발생: {e}")
-                    st.info("도움말: 사진 용량이 너무 크거나 인터넷 연결이 불안정할 수 있습니다.")
+    if st.button("AI 분리배출 분석 시작 ✨"):
+        with st.spinner("AI가 분석 중입니다..."):
+            try:
+                # 구체적인 분석 요청
+                prompt = """
+                너는 환경 전문가야. 사진 속 쓰레기를 보고 아래 형식으로 답해줘:
+                1. '이것은 [재질]로 분류되지만 [어떻게] 해야 합니다' 형식을 포함할 것.
+                2. 비닐 라벨 제거 여부나 세척 필요성을 꼼꼼히 체크해줘.
+                3. 마지막에 탄소 절감 효과를 한 줄로 적어줘.
+                학생들에게 말하듯 친절하게 설명해줘.
+                """
+                response = model.generate_content([prompt, img])
+                
+                st.success("✅ 분석 완료!")
+                st.info(response.text)
+                
+                # 분석 후에 나타나는 인증 버튼
+                if st.button("실제로 실천했습니다! 점수 올리기 🚩"):
+                    new_score = save_score()
+                    st.balloons()
+                    st.success(f"인증 성공! 현재 {new_score}점입니다.")
+                    st.rerun()
 
-st.caption("대지고등학교 통합사회 프로젝트 | 💡 Powered by Google Gemini")
+            except Exception as e:
+                st.error(f"분석 중 오류가 발생했습니다: {e}")
+
+st.caption("© 2024 대지고등학교 환경 프로젝트 | Powered by Gemini 1.5 Flash")
