@@ -5,7 +5,7 @@ import os
 
 # --- 1. API 설정 ---
 # 팁: 보안을 위해 Streamlit의 Secrets 기능을 쓰는 것이 좋지만, 우선 작동 확인을 위해 직접 넣으세요.
-GOOGLE_API_KEY = "AIzaSyDGZLjbc6oczqHhT_nMuXIj_1--OHKowGI"
+GOOGLE_API_KEY = st.secrets["GEMINI_API_KEY"]
 genai.configure(api_key=GOOGLE_API_KEY)
 
 # --- 2. 모델 자동 선택 시스템 (404 에러 방지 핵심) ---
