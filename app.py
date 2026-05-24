@@ -3,9 +3,9 @@ from groq import Groq
 from PIL import Image
 import os
 import base64
-import io
 
 # --- [1. API 클라이언트 설정 (Secrets 사용)] ---
+# Streamlit Cloud의 Settings -> Secrets에 GROQ_API_KEY가 등록되어 있어야 합니다.
 if "GROQ_API_KEY" in st.secrets:
     client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 else:
@@ -46,14 +46,14 @@ st.markdown("""
 
 # --- [3. 유틸리티 함수] ---
 def encode_image(image_file):
-    """이미지 객체를 Base64로 변환하여 Groq API에 전달 가능한 형식으로 만듦"""
+    """이미지 객체를 Base64로 변환"""
     return base64.b64encode(image_file.getvalue()).decode('utf-8')
 
 def call_groq_vision(prompt, base64_image):
-    """Groq Llama 3.2 Vision 모델 호출"""
+    """최신 Groq Llama 3.2 90B 비전 모델 호출"""
     try:
         completion = client.chat.completions.create(
-            model="llama-3.2-11b-vision-preview",
+            model="llama-3.2-90b-vision-preview", # 최신 지원 모델로 변경완료
             messages=[
                 {
                     "role": "user",
@@ -68,12 +68,12 @@ def call_groq_vision(prompt, base64_image):
                     ],
                 }
             ],
-            temperature=0.1, # 일관된 답변을 위해 낮게 설정
+            temperature=0.1,
             max_tokens=512,
         )
         return completion.choices[0].message.content
     except Exception as e:
-        return f"분석 중 오류가 발생했습니다: {e}"
+        return f"분석 오류 발생: {e}"
 
 def load_score():
     if not os.path.exists("eco_score.txt"): return 0
@@ -101,7 +101,7 @@ def reset_app():
 st.markdown("""
     <div class="header-container">
         <h1 style="margin:0; font-size: 26px;">🤖 Eco-Bot 챌린지</h1>
-        <p style="margin:5px 0 0 0; opacity: 0.9;">Groq AI 기반 분리배출 인증</p>
+        <p style="margin:5px 0 0 0; opacity: 0.9;">분리배출 2단계 인증 시스템</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -124,7 +124,7 @@ if st.session_state.step == 1:
     
     if img1:
         if st.button("분리배출 가이드 보기 💡"):
-            with st.spinner("AI가 분석 중..."):
+            with st.spinner("AI가 사진 분석 중..."):
                 base64_img = encode_image(img1)
                 prompt = "이 쓰레기를 어떻게 분리배출해야 하는지 한국어로 아주 짧게 딱 3줄로 알려줘. 1.비움, 2.제거, 3.분류 형식으로!"
                 res_text = call_groq_vision(prompt, base64_img)
@@ -172,4 +172,4 @@ elif st.session_state.step == 2:
         if st.button("다음 쓰레기 인증하기 ➡️"): reset_app()
 
 st.markdown("---")
-st.caption("대지고등학교 환경 프로젝트 | 모델: Llama-3.2-11b-Vision")
+st.caption("대지고등학교 환경 프로젝트 | 모델: Llama-3.2-90B-Vision")
