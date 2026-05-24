@@ -28,92 +28,117 @@ def get_base64_image(image_path):
 ecoryong_b64 = get_base64_image("ecoryong.png")
 mascot_src = f"data:image/png;base64,{ecoryong_b64}" if ecoryong_b64 else ""
 
-# --- [3. 디자인 커스텀 (흰색 막대 제거 및 가독성 끝판왕)] ---
+# --- [3. 가독성 올인 디자인 (흰 막대 제거 + 화이트 텍스트 아웃라인)] ---
 st.set_page_config(page_title="Nature Connect", page_icon="🌿", layout="wide")
 
 st.markdown(f"""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;800&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;700;900&display=swap');
 
-    /* [필살기] 상단 흰색 막대 및 불필요한 Streamlit 요소 완전 제거 */
-    header {{visibility: hidden !important;}}
-    [data-testid="stHeader"] {{display: none !important;}}
-    footer {{visibility: hidden !important;}}
-    .block-container {{padding-top: 2rem !important;}}
+    /* [필살기 1] 상단 흰색 막대, 배포 버튼, 푸터 완전 박멸 */
+    header, [data-testid="stHeader"], .stDeployButton, footer {{
+        visibility: hidden !important;
+        display: none !important;
+    }}
+    .block-container {{padding-top: 0rem !important;}}
 
-    /* 전체 배경: 어두운 숲 배경으로 글씨 대비 극대화 */
+    /* 배경: 고화질 숲 */
     .stApp {{
-        background: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)),
+        background: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)),
                     url("https://images.unsplash.com/photo-1441974231531-c6227db76b6e?ixlib=rb-1.2.1&auto=format&fit=crop&w=2000&q=80");
         background-size: cover;
         background-position: center;
         background-attachment: fixed;
     }}
 
-    /* 메인 카드: 완전 불투명 화이트 (가독성 100%) */
-    .content-card {{
-        background: #ffffff !important;
-        border-radius: 30px;
-        padding: 50px;
-        box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5);
-        color: #111827 !important;
-        margin: 0 auto;
-        max-width: 850px;
-        border: 4px solid #059669;
-    }}
-
-    /* 상단 타이틀 디자인 */
-    .title-area {{
-        text-align: center;
+    /* [필살기 2] 모든 글씨를 제목처럼! (흰색 글씨 + 진한 외곽선) */
+    h1, h2, h3, h4, p, span, label, .stMarkdown, div {{
         color: #ffffff !important;
-        text-shadow: 0px 4px 15px rgba(0,0,0,1);
-        margin-bottom: 50px;
+        font-family: 'Pretendard', sans-serif !important;
+        font-weight: 800 !important;
+        /* 8방향 텍스트 섀도우로 강력한 외곽선 형성 */
+        text-shadow: 
+            -2px -2px 0 #000,  
+             2px -2px 0 #000,
+            -2px  2px 0 #000,
+             2px  2px 0 #000,
+             0px -2px 0 #000,
+             0px  2px 0 #000,
+            -2px  0px 0 #000,
+             2px  0px 0 #000,
+             3px 3px 10px rgba(0,0,0,0.5) !important;
     }}
-    .main-title {{ font-size: 5.5rem !important; font-weight: 800; margin: 0; }}
-    .sub-title {{ font-size: 1.4rem; letter-spacing: 6px; opacity: 0.8; font-weight: 300; }}
 
-    /* 에코룡 & 말풍선 */
+    /* 중앙 정렬용 레이아웃 크기 유지 */
+    .main-wrapper {{
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 20px;
+    }}
+
+    .main-title {{
+        font-size: 6rem !important;
+        font-weight: 900;
+        text-align: center;
+        margin-top: 50px !important;
+        letter-spacing: -2px;
+    }}
+
+    .sub-title {{
+        font-size: 1.5rem;
+        text-align: center;
+        letter-spacing: 8px;
+        opacity: 0.9;
+        margin-bottom: 60px;
+    }}
+
+    /* 에코룡 위치 고정 */
     .mascot-box {{
         position: fixed;
         bottom: -50px;
         left: -30px;
-        width: 380px;
+        width: 400px;
         z-index: 1000;
         pointer-events: none;
     }}
     .speech-bubble {{
         position: fixed;
-        bottom: 420px;
+        bottom: 450px;
         left: 50px;
-        background: #059669;
-        color: white !important;
+        background: rgba(255,255,255,0.9);
         padding: 20px 30px;
-        border-radius: 25px;
-        border-bottom-left-radius: 2px;
-        font-weight: 600;
+        border-radius: 30px;
+        border: 4px solid #059669;
+        font-weight: 800;
+        color: #064e3b !important;
+        text-shadow: none !important; /* 말풍선 안은 가독성을 위해 그림자 제거 */
         z-index: 1001;
         box-shadow: 0 10px 30px rgba(0,0,0,0.3);
     }}
 
-    /* 버튼 스타일 */
+    /* 버튼 스타일: 숲과 어울리는 진한 녹색 */
     .stButton>button {{
         background: #059669 !important;
         color: white !important;
-        border: none !important;
-        border-radius: 15px !important;
-        font-size: 1.3rem !important;
-        font-weight: 700 !important;
-        height: 70px !important;
+        border: 2px solid white !important;
+        border-radius: 20px !important;
+        font-size: 1.5rem !important;
+        font-weight: 900 !important;
+        height: 80px !important;
         width: 100% !important;
-        transition: 0.3s;
+        text-shadow: none !important;
+        box-shadow: 0 10px 20px rgba(0,0,0,0.3) !important;
     }}
-    .stButton>button:hover {{ background: #065f46 !important; transform: translateY(-3px); }}
 
-    /* 텍스트 가독성 강제 고정 */
-    h3, p, label {{ color: #111827 !important; font-weight: 700 !important; }}
+    /* 카메라 입력 가독성 */
+    .stCameraInput {{
+        border: 4px solid #ffffff !important;
+        border-radius: 25px !important;
+        overflow: hidden;
+    }}
     </style>
     
-    <div class="speech-bubble">지구를 위한 당신의 발걸음,<br>제가 끝까지 함께할게요! 🦖</div>
+    <div class="speech-bubble">“당신의 선한 영향력,<br>제가 끝까지 기록할게요!” 🦖</div>
     <div class="mascot-box">
         <img src="{mascot_src}" width="100%">
     </div>
@@ -137,73 +162,68 @@ if 'verified' not in st.session_state: st.session_state.verified = False
 
 # --- [5. 메인 UI 화면 구성] ---
 
-# 타이틀
-st.markdown('<div class="title-area"><h1 class="main-title">Nature Connect</h1><p class="sub-title">CIRCULAR LIFE PROJECT</p></div>', unsafe_allow_html=True)
+st.markdown('<div class="main-wrapper">', unsafe_allow_html=True)
+st.markdown('<h1 class="main-title">Nature Connect</h1>', unsafe_allow_html=True)
+st.markdown('<p class="sub-title">CIRCULAR LIFE PROJECT</p>', unsafe_allow_html=True)
 
-col_empty, col_main, col_stat = st.columns([0.2, 2.5, 1])
+col_main, col_stat = st.columns([2.5, 1])
 
-# 오른쪽 통계 (세련되게 꾸밈)
+# 오른쪽 실시간 통계
 with col_stat:
     score = load_score()
     st.markdown(f"""
-        <div style="background:rgba(255,255,255,0.95); padding:30px; border-radius:25px; border-top:8px solid #059669; box-shadow: 0 10px 30px rgba(0,0,0,0.2);">
-            <p style="margin:0; font-size:0.9rem; color:#666; font-weight:800;">TOTAL ACTIONS</p>
-            <h1 style="margin:10px 0; color:#059669; font-size:3.5rem;">{score}</h1>
-            <p style="color:#111827; font-size:1rem; border-top:1px solid #eee; padding-top:20px;">
-                <b>오늘의 환경 메시지</b><br>
-                당신의 한 번의 분류가 죽어가는 숲을 살리는 강력한 힘이 됩니다.
+        <div style="margin-top:20px;">
+            <p style="font-size:1.1rem; opacity:0.8;">CUMULATIVE IMPACT</p>
+            <h1 style="font-size:4.5rem; margin:0;">{score}</h1>
+            <p style="margin-top:20px; font-size:0.9rem; line-height:1.6;">
+                오늘의 메시지:<br>
+                분리배출은 버리는 것이 아니라,<br>새로운 생명을 불어넣는 일입니다.
             </p>
         </div>
     """, unsafe_allow_html=True)
 
-# 중앙 메인 컨텐츠
+# 중앙 메인 로직
 with col_main:
-    st.markdown('<div class="content-card">', unsafe_allow_html=True)
-    
     if st.session_state.step == 1:
-        st.markdown("### 🔍 01. 대상 탐색")
-        st.write("순환이 필요한 물건을 카메라에 담아주세요. AI가 최선의 방법을 제안합니다.")
-        img1 = st.camera_input("Scanner", key="cam1")
+        st.markdown("### 🔍 01. 대상 기록")
+        st.write("순환이 필요한 자원을 카메라에 담아주세요.")
+        img1 = st.camera_input("", key="cam1")
         if img1:
             if st.button("분석 엔진 가동"):
-                with st.spinner("자원을 식별하고 있습니다..."):
+                with st.spinner("분석 중..."):
                     try:
-                        res = model.generate_content(["이 물건의 분리배출 팁을 간결하게 2줄로 설명해줘.", Image.open(img1)])
+                        res = model.generate_content(["이 물건의 분리배출 팁을 간결하게 2줄로.", Image.open(img1)])
                         st.session_state.guide = res.text
                         st.session_state.step = 2
                         st.rerun()
                     except Exception as e: st.error(f"Error: {e}")
 
     elif st.session_state.step == 2:
-        st.markdown(f"""
-            <div style="background:#f0fdf4; padding:25px; border-radius:20px; border-left:8px solid #059669; margin-bottom:30px;">
-                <p style="margin:0; color:#065f46; font-size:1.2rem;"><b>🌱 가이드:</b> {st.session_state.guide}</p>
-            </div>
-        """, unsafe_allow_html=True)
+        st.markdown(f"**🌱 가이드:** {st.session_state.guide}")
         st.markdown("### ✨ 02. 가치 증명")
-        st.write("완성된 선순환의 모습을 렌즈로 기록하여 증명해주세요.")
-        img2 = st.camera_input("Proof", key="cam2")
+        st.write("분류가 완료된 실천의 모습을 증명해주세요.")
+        img2 = st.camera_input("", key="cam2")
         
         c1, c2 = st.columns(2)
         with c1:
-            if st.button("처음으로"):
+            if st.button("다시 시도"):
                 st.session_state.step = 1; st.rerun()
         with c2:
             if img2 and not st.session_state.verified:
-                if st.button("실천 기록하기"):
-                    with st.spinner("실천 내용을 검증하는 중입니다..."):
+                if st.button("실천 기록"):
+                    with st.spinner("검증 중..."):
                         try:
-                            res = model.generate_content(["가이드대로 적절히 분류되었는지 확인해줘. 성공하면 반드시 '인증성공' 단어를 포함해줘.", Image.open(img2)])
+                            res = model.generate_content(["가이드대로 잘 분류되었는지 확인해줘. 성공하면 반드시 '인증성공' 단어 포함.", Image.open(img2)])
                             if "인증성공" in res.text or "성공" in res.text:
                                 add_score()
                                 st.session_state.verified = True
                                 st.balloons()
-                                st.success("소중한 변화가 기록되었습니다.")
-                            else: st.error(f"결과: {res.text}")
+                                st.success("기록 완료!")
+                            else: st.error(f"판정: {res.text}")
                         except Exception as e: st.error(f"Error: {e}")
 
     if st.session_state.verified:
-        if st.button("새로운 순환 시작하기"):
+        if st.button("새로운 순환 시작"):
             st.session_state.step = 1; st.session_state.verified = False; st.rerun()
 
-    st.markdown('</div>', unsafe_allow_html=True)
+st.markdown('</div>', unsafe_allow_html=True)
