@@ -4,7 +4,7 @@ from PIL import Image
 import os
 import base64
 
-# --- [1. API 클라이언트 설정 (Secrets 사용)] ---
+# --- [1. API 클라이언트 설정] ---
 # Streamlit Cloud의 Settings -> Secrets에 GROQ_API_KEY가 등록되어 있어야 합니다.
 if "GROQ_API_KEY" in st.secrets:
     client = Groq(api_key=st.secrets["GROQ_API_KEY"])
@@ -50,10 +50,10 @@ def encode_image(image_file):
     return base64.b64encode(image_file.getvalue()).decode('utf-8')
 
 def call_groq_vision(prompt, base64_image):
-    """최신 Groq Llama 3.2 90B 비전 모델 호출"""
+    """가장 안정적인 Llava 모델 호출 (400 에러 해결사)"""
     try:
         completion = client.chat.completions.create(
-            model="llama-3.2-90b-vision-preview", # 최신 지원 모델로 변경완료
+            model="llava-v1.5-7b-4096", # Llama 모델 대신 가장 안정적인 Llava 모델 사용
             messages=[
                 {
                     "role": "user",
@@ -73,7 +73,8 @@ def call_groq_vision(prompt, base64_image):
         )
         return completion.choices[0].message.content
     except Exception as e:
-        return f"분석 오류 발생: {e}"
+        # 만약 Llava도 안된다면 다시 시도해볼 모델 목록 출력
+        return f"분석 오류 발생: {e}\n(모델이 점검 중일 수 있습니다. 관리자에게 문의하세요.)"
 
 def load_score():
     if not os.path.exists("eco_score.txt"): return 0
@@ -126,7 +127,8 @@ if st.session_state.step == 1:
         if st.button("분리배출 가이드 보기 💡"):
             with st.spinner("AI가 사진 분석 중..."):
                 base64_img = encode_image(img1)
-                prompt = "이 쓰레기를 어떻게 분리배출해야 하는지 한국어로 아주 짧게 딱 3줄로 알려줘. 1.비움, 2.제거, 3.분류 형식으로!"
+                # Llava 모델은 가끔 영어로 대답하므로 한국어 답변을 강하게 요청합니다.
+                prompt = "이 사진 속 물건의 분리배출 방법을 반드시 '한국어'로 3줄 요약해줘. 1.비움, 2.제거, 3.분류 형식으로!"
                 res_text = call_groq_vision(prompt, base64_img)
                 st.session_state.guide = res_text
                 st.session_state.step = 2
@@ -157,7 +159,7 @@ elif st.session_state.step == 2:
             if st.button("최종 인증 완료 ✅"):
                 with st.spinner("검수 중..."):
                     base64_img2 = encode_image(img2)
-                    verify_prompt = f"사용자 가이드: {st.session_state.guide}. 사진을 보고 가이드대로 잘 했는지 확인해줘. 성공했다면 무조건 '인증성공'이라는 단어를 포함해서 한 줄로 칭찬해주고, 아니면 부족한 점을 딱 한 줄만 말해줘."
+                    verify_prompt = f"사용자 가이드: {st.session_state.guide}. 사진을 보고 가이드대로 잘 했는지 확인해줘. 잘 했으면 '인증성공'이라는 단어를 반드시 포함해서 한국어로 한 줄 칭찬해줘. 아니면 부족한 점을 말해줘."
                     res_text = call_groq_vision(verify_prompt, base64_img2)
                     
                     if "인증성공" in res_text or "성공" in res_text:
@@ -172,4 +174,4 @@ elif st.session_state.step == 2:
         if st.button("다음 쓰레기 인증하기 ➡️"): reset_app()
 
 st.markdown("---")
-st.caption("대지고등학교 환경 프로젝트 | 모델: Llama-3.2-90B-Vision")
+st.caption("대지고등학교 환경 프로젝트 | 모델: Llava-v1.5-7B")
