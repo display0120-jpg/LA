@@ -3,15 +3,9 @@ import google.generativeai as genai
 from PIL import Image
 import os
 
-# --- [1. 브랜딩 & 와이드 레이아웃 세팅] ---
-st.set_page_config(
-    page_title="Eco-Bot 챌린지", 
-    page_icon="🌿", 
-    layout="wide", # 양옆을 더 활용하기 위해 wide 모드 사용
-    initial_sidebar_state="expanded"
-)
+# --- [1. 기본 설정 및 AI 연결] ---
+st.set_page_config(page_title="Eco-Bot 챌린지", page_icon="🌿", layout="wide")
 
-# --- [2. AI 모델 자동 탐색 및 설정] ---
 if "GEMINI_API_KEY" in st.secrets:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 else:
@@ -19,73 +13,100 @@ else:
     st.stop()
 
 @st.cache_resource
-def find_working_model():
+def get_model():
     try:
         available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
         target = next((m for m in available_models if "gemini-1.5-flash" in m), available_models[0])
         return genai.GenerativeModel(target)
     except: return None
 
-model = find_working_model()
+model = get_model()
 
-# --- [3. 스타일링 (양옆 배경 및 디자인)] ---
+# --- [2. 역대급 자연 테마 디자인 (CSS)] ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;700&display=swap');
     
-    /* 전체 배경색 및 폰트 */
+    /* 전체 배경: 은은한 숲의 감성 */
     .stApp {
-        background: linear-gradient(to right, #f0fdf4, #ffffff, #f0fdf4);
+        background-image: url("https://images.unsplash.com/photo-1441974231531-c6227db76b6e?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80");
+        background-attachment: fixed;
+        background-size: cover;
         font-family: 'Pretendard', sans-serif;
     }
 
-    /* 상단 헤더 */
-    .header-container {
-        background: linear-gradient(135deg, #059669 0%, #10B981 100%);
-        padding: 40px; border-radius: 25px;
-        color: white; text-align: center; margin-bottom: 30px;
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    /* 반투명 글래스모피즘 컨테이너 */
+    .main-box {
+        background: rgba(255, 255, 255, 0.85);
+        backdrop-filter: blur(10px);
+        border-radius: 30px;
+        padding: 40px;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+        margin: 20px auto;
+        max-width: 900px;
     }
 
-    /* 메인 카드 디자인 */
-    .main-card {
-        background: white; padding: 30px; border-radius: 20px;
-        border: 1px solid #dcfce7; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-        margin-bottom: 20px;
+    /* 상단 헤더 섹션 */
+    .header-text {
+        text-align: center;
+        color: #064e3b;
+        margin-bottom: 30px;
+    }
+    
+    .header-text h1 { font-size: 3rem; font-weight: 700; color: #065f46; text-shadow: 1px 1px 2px rgba(0,0,0,0.1); }
+    .header-text p { font-size: 1.2rem; color: #047857; font-weight: 400; }
+
+    /* 버튼 스타일 커스텀 */
+    .stButton>button {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 15px !important;
+        padding: 15px 30px !important;
+        font-weight: 700 !important;
+        transition: all 0.3s ease !important;
+    }
+    .stButton>button:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 20px rgba(5, 150, 105, 0.3);
     }
 
-    /* AI 가이드 박스 */
-    .guide-box {
-        background-color: #ecfdf5; border-left: 5px solid #10b981;
-        padding: 20px; border-radius: 10px; color: #064e3b; font-size: 1.1em;
+    /* 가이드 박스 */
+    .guide-card {
+        background: rgba(16, 185, 129, 0.1);
+        border-radius: 20px;
+        padding: 20px;
+        border-left: 10px solid #10b981;
+        margin: 20px 0;
+        color: #064e3b;
     }
 
-    /* 사이드바 스타일링 */
-    [data-testid="stSidebar"] {
-        background-color: #ffffff;
-        border-right: 1px solid #e5e7eb;
+    /* 양옆 장식 (고정 위치) */
+    .leaf-deco {
+        position: fixed;
+        bottom: -50px;
+        left: -50px;
+        width: 300px;
+        opacity: 0.8;
+        z-index: -1;
+    }
+    .leaf-deco-right {
+        position: fixed;
+        top: -50px;
+        right: -50px;
+        width: 350px;
+        opacity: 0.7;
+        transform: rotate(180deg);
+        z-index: -1;
     }
     </style>
+    
+    <img src="https://www.pngarts.com/files/3/Green-Leaves-Transparent-Background-PNG.png" class="leaf-deco">
+    <img src="https://www.pngarts.com/files/3/Green-Leaves-Transparent-Background-PNG.png" class="leaf-deco-right">
     """, unsafe_allow_html=True)
 
-# --- [4. 사이드바 (양옆 허전함 채우기)] ---
-with st.sidebar:
-    st.image("https://img.freepik.com/free-vector/save-planet-concept-with-earth-recycling-symbol_23-2148520448.jpg", use_column_width=True)
-    st.markdown("### 🌿 에코봇의 검사 기준")
-    st.info("""
-    1. **내용물:** 깨끗이 비웠나요?
-    2. **라벨/뚜껑:** 다른 재질은 제거했나요?
-    3. **부피:** 우유팩이나 박스는 **반드시 펼치거나 압착**했나요?
-    4. **이물질:** 오염된 부분은 없나요?
-    """)
-    st.write("---")
-    st.caption("대지고등학교 환경 프로젝트 팀")
-
-# --- [5. 데이터 및 상태 관리] ---
-if 'step' not in st.session_state: st.session_state.step = 1
-if 'guide' not in st.session_state: st.session_state.guide = ""
-if 'verified' not in st.session_state: st.session_state.verified = False
-
+# --- [3. 메인 로직 및 점수 관리] ---
 def load_score():
     if not os.path.exists("eco_score.txt"): return 0
     with open("eco_score.txt", "r") as f: 
@@ -97,69 +118,74 @@ def add_score():
     with open("eco_score.txt", "w") as f: f.write(str(score))
     return score
 
-# --- [6. 메인 화면 로직] ---
+if 'step' not in st.session_state: st.session_state.step = 1
+if 'guide' not in st.session_state: st.session_state.guide = ""
+if 'verified' not in st.session_state: st.session_state.verified = False
 
-# 화면 분할 (양옆에 AI 느낌의 에코 이미지를 배치)
-col_left, col_main, col_right = st.columns([1, 3, 1])
+# --- [4. 화면 레이아웃] ---
+col1, col2, col3 = st.columns([1, 4, 1]) # 메인 콘텐츠 비율 조정
 
-with col_left:
-    st.image("https://img.freepik.com/free-photo/vibrant-green-leaf-with-water-drops-symbolizing-nature-s-purity_911060-3940.jpg", caption="Nature Power")
-    st.image("https://img.freepik.com/free-vector/flat-world-environment-day-illustration-with-planet-earth_23-2148924041.jpg")
+with col2:
+    st.markdown("""
+        <div class="header-text">
+            <h1>🌿 Eco-Bot 챌린지</h1>
+            <p>자연을 지키는 가장 까다로운 발걸음</p>
+        </div>
+    """, unsafe_allow_html=True)
 
-with col_right:
-    st.image("https://img.freepik.com/free-vector/flat-design-forest-landscape_23-2149155014.jpg", caption="Keep Clean")
-    st.image("https://img.freepik.com/free-vector/organic-flat-world-environment-day-illustration_23-2148922573.jpg")
-
-with col_main:
-    st.markdown('<div class="header-container"><h1>🤖 Eco-Bot 챌린지</h1><p>깐깐한 AI의 분리배출 2단계 인증</p></div>', unsafe_allow_html=True)
-    
     score = load_score()
-    st.markdown(f"#### 🏆 우리 반 누적 점수: `{score}점`", unsafe_allow_html=True)
+    st.markdown(f"<h3 style='text-align:center; color:#065f46;'>🏆 우리 반 누적 점수: {score}점</h3>", unsafe_allow_html=True)
 
-    # 1단계: 가이드 생성
+    st.markdown('<div class="main-box">', unsafe_allow_html=True)
+
+    # --- 1단계: 사진 촬영 및 가이드 ---
     if st.session_state.step == 1:
-        st.markdown('<div class="main-card"><h3>📸 1단계: 버리기 전 촬영</h3><p>쓰레기의 원래 상태를 보여주세요. AI가 배출 방법을 알려드립니다.</p></div>', unsafe_allow_html=True)
-        img1 = st.camera_input("촬영하기", key="cam1")
+        st.subheader("📸 1단계: 쓰레기 원래 상태 촬영")
+        st.write("버리기 전의 사진을 찍어주세요. AI 감독관이 배출 미션을 줄 거예요.")
+        img1 = st.camera_input("버리기 전 사진", key="cam1")
         
         if img1:
-            if st.button("배출 가이드 생성 💡"):
-                with st.spinner("AI 분석 중..."):
+            if st.button("배출 미션 받기 💡"):
+                with st.spinner("AI가 쓰레기 상태를 정밀 분석 중..."):
                     try:
-                        res = model.generate_content(["이 물건의 분리배출법을 알려줘. 특히 펼치기, 씻기, 라벨 제거 등 사용자가 '인증'할 때 지켜야 할 사항을 3가지로 강조해줘.", Image.open(img1)])
+                        prompt = "이 물건의 정확한 분리배출법을 한국어로 3줄 요약해줘. 특히 '인증 단계'에서 확인해야 할 핵심 행동(예: 우유팩은 씻어서 펼쳤는가?)을 반드시 포함해줘."
+                        res = model.generate_content([prompt, Image.open(img1)])
                         st.session_state.guide = res.text
                         st.session_state.step = 2
                         st.rerun()
                     except Exception as e: st.error(f"오류: {e}")
 
-    # 2단계: 깐깐한 인증
+    # --- 2단계: 실천 인증 (초정밀 검수 모드) ---
     elif st.session_state.step == 2:
-        st.markdown(f'<div class="guide-box"><strong>📝 AI의 미션:</strong><br>{st.session_state.guide}</div>', unsafe_allow_html=True)
-        st.write("")
-        st.markdown('<div class="main-card"><h3>✅ 2단계: 실천 후 인증</h3><p>가이드대로 처리된 모습을 찍어주세요. <b>우유팩 펼치기, 라벨 제거 등</b>이 안 되어 있으면 반려됩니다!</p></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="guide-card"><strong>📋 AI 감독관의 미션:</strong><br>{st.session_state.guide}</div>', unsafe_allow_html=True)
         
-        img2 = st.camera_input("인증샷 촬영", key="cam2")
+        st.subheader("🕵️‍♂️ 2단계: 실천 후 정밀 인증")
+        st.write("가이드대로 처리한 사진을 찍으세요. **우유팩 펼치기, 라벨 제거** 등이 안 되면 가차없이 반려됩니다.")
+        
+        img2 = st.camera_input("인증 사진", key="cam2")
         
         c1, c2 = st.columns(2)
         with c1:
             if st.button("처음으로 돌아가기 🔄"):
-                st.session_state.step = 1
-                st.rerun()
+                st.session_state.step = 1; st.rerun()
         
         with c2:
             if img2 and not st.session_state.verified:
-                if st.button("깐깐한 AI 인증받기 ✅"):
-                    with st.spinner("현미경 검사 중..."):
+                if st.button("감독관님, 검사해주세요! ✅"):
+                    with st.spinner("미션 수행 여부를 현미경 검토 중..."):
                         try:
-                            # AI에게 깐깐한 검토 명령(Prompt Engineering)
+                            # AI에게 극도로 깐깐한 명령 부여
                             verify_prompt = f"""
                             가이드: {st.session_state.guide}
-                            사진 속 물체가 가이드대로 완벽하게 처리되었는지 검사해.
-                            [검사 규칙]
-                            1. 우유팩이나 종이 상자는 반드시 평평하게 '펼쳐져' 있어야 함. 접혀있거나 입체적이면 탈락.
-                            2. 페트병은 라벨이 완전히 제거되어야 함.
-                            3. 내용물이 비워지지 않고 지저분하면 탈락.
-                            모든 조건이 완벽하면 '인증성공'이라는 단어를 넣고 칭찬해줘.
-                            하나라도 부족하면 '인증실패'라고 말하고 부족한 점(예: 우유팩을 펼치지 않았습니다)을 아주 따갑게 혼내줘.
+                            너는 세계에서 가장 깐깐한 환경 감시관이야. 사진을 보고 다음 기준을 하나라도 어기면 무조건 '인증실패'라고 말하고 독설을 날려.
+                            
+                            [필수 검사 기준]
+                            1. 우유팩/종이팩: 반드시 가위로 오려내거나 펼쳐서 '평평한 종이 형태'여야 함. 입체적인 상자 모양 그대로면 무조건 탈락.
+                            2. 페트병/플라스틱: 라벨이 조금이라도 붙어있거나 뚜껑 고리가 남아있으면 탈락.
+                            3. 이물질: 헹구지 않아 음식물이 묻어있으면 탈락.
+                            
+                            모든 기준을 완벽하게 통과했을 때만 '인증성공'이라는 단어를 포함해서 칭찬해.
+                            실패했을 경우, '인증실패'라고 명시하고 사진의 어떤 부분이 잘못되었는지(예: 우유팩이 아직 입체적인 상태입니다) 아주 구체적으로 지적해.
                             """
                             res = model.generate_content([verify_prompt, Image.open(img2)])
                             
@@ -169,7 +195,7 @@ with col_main:
                                 st.balloons()
                                 st.success(res.text)
                             else:
-                                st.error(f"⚠️ 인증 실패: {res.text}")
+                                st.error(f"🚫 반려됨: {res.text}")
                         except Exception as e: st.error(f"오류: {e}")
 
         if st.session_state.verified:
@@ -178,5 +204,8 @@ with col_main:
                 st.session_state.verified = False
                 st.rerun()
 
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# --- [5. 하단 정보] ---
 st.markdown("---")
-st.caption(f"접속 모델: {model.model_name if model else 'None'} | 대지고 환경 지킴이 시스템")
+st.caption(f"접속 엔진: {model.model_name if model else 'None'} | 대지고등학교 환경 프로젝트 팀")
