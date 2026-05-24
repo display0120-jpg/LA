@@ -1,18 +1,21 @@
 import streamlit as st
-from groq import Groq
+import google.generativeai as genai
 from PIL import Image
 import os
-import base64
+import time
 
-# --- [1. API 클라이언트 설정] ---
-# Streamlit Cloud의 Settings -> Secrets에 GROQ_API_KEY가 등록되어 있어야 합니다.
-if "GROQ_API_KEY" in st.secrets:
-    client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+# --- [1. API 설정 및 모델 로드] ---
+# Streamlit Cloud의 Settings -> Secrets에 GEMINI_API_KEY를 등록하세요.
+if "GEMINI_API_KEY" in st.secrets:
+    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 else:
-    st.error("설정 오류: Streamlit Cloud의 Secrets에 'GROQ_API_KEY'를 등록해주세요.")
+    st.error("Secrets에 'GEMINI_API_KEY'를 등록해주세요!")
     st.stop()
 
-# --- [2. 브랜딩 & 디자인 세팅] ---
+# 가장 안정적인 Gemini 1.5 Flash 모델 사용 (모델명 절대 안 바뀜)
+model = genai.GenerativeModel('gemini-1.5-flash')
+
+# --- [2. 디자인 세팅] ---
 st.set_page_config(page_title="Eco-Bot 챌린지", page_icon="🤖", layout="centered")
 
 st.markdown("""
@@ -24,7 +27,6 @@ st.markdown("""
         background: linear-gradient(135deg, #059669 0%, #10B981 100%);
         padding: 30px; border-radius: 0 0 30px 30px;
         color: white; text-align: center; margin-bottom: 20px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     }
     .bot-card {
         background-color: white; padding: 20px; border-radius: 20px;
@@ -34,47 +36,25 @@ st.markdown("""
     .mission-card {
         background-color: #F0FDF4; padding: 15px; border-radius: 15px;
         border-left: 8px solid #059669; margin: 10px 0; color: #111827;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     }
     .stButton>button {
         width: 100%; border-radius: 15px !important;
         background-color: #059669 !important; color: white !important;
-        font-weight: 700 !important; height: 3.5em !important; border: none !important;
+        font-weight: 700 !important; height: 3.5em !important;
     }
     </style>
     """, unsafe_allow_html=True)
 
 # --- [3. 유틸리티 함수] ---
-def encode_image(image_file):
-    """이미지 객체를 Base64로 변환"""
-    return base64.b64encode(image_file.getvalue()).decode('utf-8')
-
-def call_groq_vision(prompt, base64_image):
-    """가장 안정적인 Llava 모델 호출 (400 에러 해결사)"""
+def get_ai_response(prompt, image):
+    """Gemini API 호출 및 에러 처리"""
     try:
-        completion = client.chat.completions.create(
-            model="llava-v1.5-7b-4096", # Llama 모델 대신 가장 안정적인 Llava 모델 사용
-            messages=[
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": prompt},
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/jpeg;base64,{base64_image}",
-                            },
-                        },
-                    ],
-                }
-            ],
-            temperature=0.1,
-            max_tokens=512,
-        )
-        return completion.choices[0].message.content
+        response = model.generate_content([prompt, image])
+        return response.text
     except Exception as e:
-        # 만약 Llava도 안된다면 다시 시도해볼 모델 목록 출력
-        return f"분석 오류 발생: {e}\n(모델이 점검 중일 수 있습니다. 관리자에게 문의하세요.)"
+        if "429" in str(e):
+            return "⚠️ 현재 사용자가 많아 잠시 막혔습니다. 10초 뒤에 다시 시도해주세요!"
+        return f"❌ 오류 발생: {e}"
 
 def load_score():
     if not os.path.exists("eco_score.txt"): return 0
@@ -98,57 +78,51 @@ def reset_app():
     st.session_state.verified = False
     st.rerun()
 
-# --- [5. 메인 UI 화면 구성] ---
+# --- [5. UI 화면 구성] ---
 st.markdown("""
     <div class="header-container">
         <h1 style="margin:0; font-size: 26px;">🤖 Eco-Bot 챌린지</h1>
-        <p style="margin:5px 0 0 0; opacity: 0.9;">분리배출 2단계 인증 시스템</p>
+        <p style="margin:5px 0 0 0; opacity: 0.9;">가장 똑똑하고 안정적인 에코봇</p>
     </div>
     """, unsafe_allow_html=True)
 
 score = load_score()
 st.markdown(f"<div style='text-align:center; font-weight:bold; color:#065F46; margin-bottom:15px;'>현재 우리 반 누적 점수: {score}점 🏆</div>", unsafe_allow_html=True)
 
-# [1단계: 쓰레기 인식 및 가이드 제공]
+# [1단계: 사진 촬영 및 가이드]
 if st.session_state.step == 1:
     st.markdown("""
         <div class="bot-card">
             <div style="font-size:40px;">🤖</div>
-            <div>
-                <strong>안녕! 난 에코봇이야.</strong><br>
-                쓰레기 사진을 찍으면 어떻게 버리는지 알려줄게!
-            </div>
+            <div><strong>반가워! 난 에코봇이야.</strong><br>버릴 쓰레기 사진을 찍어줘.</div>
         </div>
     """, unsafe_allow_html=True)
     
-    img1 = st.camera_input("1단계: 버리기 전 사진 촬영", key="cam1")
+    img1 = st.camera_input("1단계: 사진 찍기", key="cam1")
     
     if img1:
         if st.button("분리배출 가이드 보기 💡"):
-            with st.spinner("AI가 사진 분석 중..."):
-                base64_img = encode_image(img1)
-                # Llava 모델은 가끔 영어로 대답하므로 한국어 답변을 강하게 요청합니다.
-                prompt = "이 사진 속 물건의 분리배출 방법을 반드시 '한국어'로 3줄 요약해줘. 1.비움, 2.제거, 3.분류 형식으로!"
-                res_text = call_groq_vision(prompt, base64_img)
-                st.session_state.guide = res_text
-                st.session_state.step = 2
-                st.rerun()
+            with st.spinner("AI가 분석 중..."):
+                prompt = "이 사진 속 물건의 분리배출 방법을 한국어로 3줄 요약해줘. 1.비움, 2.제거, 3.분류 형식으로!"
+                res = get_ai_response(prompt, Image.open(img1))
+                if "⚠️" in res or "❌" in res:
+                    st.warning(res)
+                else:
+                    st.session_state.guide = res
+                    st.session_state.step = 2
+                    st.rerun()
 
 # [2단계: 실천 인증]
 elif st.session_state.step == 2:
-    st.markdown("""
+    st.markdown(f"""
         <div class="bot-card">
             <div style="font-size:40px;">🕵️‍♂️</div>
-            <div>
-                <strong>가이드대로 실천했니?</strong><br>
-                깨끗해진 모습을 다시 찍어서 인증해줘!
-            </div>
+            <div>가이드대로 실천했니? 깨끗해진 사진을 찍어줘!</div>
         </div>
+        <div class="mission-card"><strong>📝 실천 미션:</strong><br>{st.session_state.guide}</div>
     """, unsafe_allow_html=True)
     
-    st.markdown(f"<div class='mission-card'><strong>📝 배출 가이드:</strong><br>{st.session_state.guide}</div>", unsafe_allow_html=True)
-    
-    img2 = st.camera_input("2단계: 실천 후 사진 촬영", key="cam2")
+    img2 = st.camera_input("2단계: 인증 사진 찍기", key="cam2")
     
     col1, col2 = st.columns(2)
     with col1:
@@ -158,20 +132,19 @@ elif st.session_state.step == 2:
         with col2:
             if st.button("최종 인증 완료 ✅"):
                 with st.spinner("검수 중..."):
-                    base64_img2 = encode_image(img2)
-                    verify_prompt = f"사용자 가이드: {st.session_state.guide}. 사진을 보고 가이드대로 잘 했는지 확인해줘. 잘 했으면 '인증성공'이라는 단어를 반드시 포함해서 한국어로 한 줄 칭찬해줘. 아니면 부족한 점을 말해줘."
-                    res_text = call_groq_vision(verify_prompt, base64_img2)
+                    verify_prompt = f"사용자 가이드: {st.session_state.guide}. 사진을 보고 가이드대로 잘 했는지 확인해줘. 성공했다면 무조건 '인증성공'이라는 단어를 포함해서 한 줄로 칭찬해줘."
+                    res = get_ai_response(verify_prompt, Image.open(img2))
                     
-                    if "인증성공" in res_text or "성공" in res_text:
+                    if "인증성공" in res:
                         add_score()
                         st.session_state.verified = True
                         st.balloons()
-                        st.success(res_text)
+                        st.success(res)
                     else:
-                        st.error(res_text)
+                        st.error(res)
 
     if st.session_state.verified:
-        if st.button("다음 쓰레기 인증하기 ➡️"): reset_app()
+        if st.button("다음 쓰레기 하러 가기 ➡️"): reset_app()
 
 st.markdown("---")
-st.caption("대지고등학교 환경 프로젝트 | 모델: Llava-v1.5-7B")
+st.caption("대지고등학교 환경 프로젝트 | 모델: Gemini 1.5 Flash (Stable)")
