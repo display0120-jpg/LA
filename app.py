@@ -92,7 +92,7 @@ st.markdown(f"""
 
     /* 에코룡 위치 및 말풍선 (왼쪽 하단 고정) */
     .mascot-container {{
-        position: fixed;
+        osition: fixed;
         bottom: -60px; 
         left: -30px; 
         width: 400px;
