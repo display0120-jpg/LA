@@ -138,7 +138,7 @@ st.markdown(f"""
     }}
     </style>
     
-    <div class="speech-bubble">“제대로 분류했는지<br>제가 한 번 봐 드릴게요!” 🦖</div>
+    <div class="speech-bubble">“지원이 바보” 🦖</div>
     <div class="mascot-container">
         <img src="{mascot_src}" width="100%">
     </div>
