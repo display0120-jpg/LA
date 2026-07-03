@@ -136,14 +136,7 @@ st.markdown(f"""
         border-radius: 20px !important;
         overflow: hidden;
     }}
-    </style>
     
-    <div class="speech-bubble">“지원이 바보” 🦖</div>
-    <div class="mascot-container">
-        <img src="{mascot_src}" width="100%">
-    </div>
-    """, unsafe_allow_html=True)
-
 # --- [4. 점수 관리 및 데이터] ---
 def load_score():
     if not os.path.exists("eco_score.txt"): return 0
